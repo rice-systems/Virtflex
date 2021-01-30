@@ -1,0 +1,39 @@
+Virtflex is a multilayered system that allows the xen hypervisor
+to change guests NUMA topology dynamically and allows unmodified OpenMP
+applications running in the guests to adapt to topology changes 
+automatically. 
+
+The modified Xen-hypervisor is able to add or remove guest NUMA node
+through a combination of vCPU hotplug, superpage balloonning and guest
+memory migration. Once those changes are finished, the hypervisor
+notifies guests through xenstore. The guests then expose a proc file 
+interface to allow userspace applications about this change. OpenMP 
+runtimes are also modified to periodically poll on the proc file. Once OpenMP
+runtime notice there is a NUMA topology change, it re-distribute the
+running threads and issues an added syscall to request a reset of application
+memory. This syscall scan through the whole address space of the guest
+applcations and migrate application memory to the correct node. 
+
+Virtflex provides enhancement across the xen-hypervisor, 
+the Linux kernel and the gcc OpenMP runtime. This repo 
+consists of the following parts: 
+	1. The modified xen-hypervisor based on xen-4.11, 
+	2. The modified Linux kernel based on Linux kernel 4.19
+	3. The modified openmp runtime based on gcc-7.3
+	4. Shell scripts for demonstration of Virtflex.
+The system is tested on a EPYC 7551p machine with 4 fully connected NUMA nodes.
+
+Virtflex's topology change is intiated with xenstore. There are
+target for different guest NUMA nodes in xenstore and there is one
+xenstore node that indicate whether the guest is undergoing topology
+changes or not. The guest_topo_change.sh script provided mainly manipulate
+xenstore to initiate topology changes to guests. 
+
+guest_topo_change.sh will list the current running
+VMs and let the administrator choose the target VM and what action to take
+towards the target VM (expand or shrink VM's topology). 
+
+Note that the domonstration requires vCPU pinning and the vCPU pinning
+exmaple on EPYC 7551P can be found in vcpu_pinning.sh in the script directory.
+The VM creation and configuration scripts can also be found in the script 
+directory too.

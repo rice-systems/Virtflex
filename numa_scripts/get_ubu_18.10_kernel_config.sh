@@ -1,0 +1,1 @@
+wget -qO- http://archive.ubuntu.com/ubuntu/pool/main/l/linux/linux-headers-4.18.0-18-generic_4.18.0-18.19_amd64.deb | dpkg-deb --fsys-tarfile /dev/stdin | tar Ox --wildcards './usr/src/*/.config' > .config

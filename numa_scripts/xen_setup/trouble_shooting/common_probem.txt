@@ -1,0 +1,20 @@
+1. VM boot partition is damaged
+	1) find the lvm path of the boot partition: lvscan or lvdisplay
+	2) fsck <patition path> and follow the instructions 
+
+2. How to gdb debug guest kernel
+	1) locate the debugger: can be found in <xen-source-directory>/tools/debugger/gdbsx
+	2) connect gdbsx to vm: 
+			sudo ./gdbsx -a domid <32|64> PORT
+			usually choose 64 bit and PORT can choose randomly, e.g. 9999
+			If successful, a message like this will show:
+				Listening on port 9999
+			And VM will be paused. 
+	3) connect gdb to gdbsx:
+			locate the guest kernel binary, and lauch gdb:
+				gdb ./vmlinux
+			connect to the same port as specified in the previous step: (PORT 9999)
+				 target remote <domain0 ip>:9999
+			in our case, ip is localhost.
+
+			

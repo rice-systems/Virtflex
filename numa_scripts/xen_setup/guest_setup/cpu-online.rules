@@ -1,0 +1,1 @@
+SUBSYSTEM=="cpu", ACTION=="add", RUN+="/bin/sh -c 'echo 1 > %S%p/online'"

@@ -1,0 +1,63 @@
+diff --git tools/libxl/libxl_vnuma.c tools/libxl/libxl_vnuma.c
+index 8ec2abb..1a972c7 100644
+--- tools/libxl/libxl_vnuma.c
++++ tools/libxl/libxl_vnuma.c
+@@ -282,7 +282,7 @@ int libxl__vnuma_build_vmemrange_hvm(libxl__gc *gc,
+ 
+         /* Consider video ram belongs to vnode 0 */
+         if (nid == 0) {
+-            if (p->memkb < b_info->video_memkb) {
++            if ((int64_t)p->memkb < (int64_t)b_info->video_memkb) {
+                 LOGD(ERROR, domid, "vnode 0 too small to contain video ram");
+                 rc = ERROR_INVAL;
+                 goto out;
+diff --git tools/libxl/libxl_x86_acpi.c tools/libxl/libxl_x86_acpi.c
+index ed6610c..885d096 100644
+--- tools/libxl/libxl_x86_acpi.c
++++ tools/libxl/libxl_x86_acpi.c
+@@ -119,14 +119,14 @@ static int init_acpi_config(libxl__gc *gc,
+         r = xc_domain_getvnuma(xch, domid, &numa->nr_vnodes,
+                                &numa->nr_vmemranges,
+                                &hvminfo->nr_vcpus, NULL, NULL, NULL);
+-        if (r) {
++        if (r && errno != ENOBUFS) {
+             LOG(ERROR, "xc_domain_getvnuma failed (rc=%d)", r);
+             rc = ERROR_FAIL;
+             goto out;
+         }
+ 
+         vmemrange = libxl__zalloc(gc, dom->nr_vmemranges * sizeof(*vmemrange));
+-        vdistance = libxl__zalloc(gc, dom->nr_vnodes * sizeof(*vdistance));
++        vdistance = libxl__zalloc(gc, dom->nr_vnodes * dom->nr_vnodes * sizeof(*vdistance));
+         vcpu_to_vnode = libxl__zalloc(gc, hvminfo->nr_vcpus *
+                                       sizeof(*vcpu_to_vnode));
+         r = xc_domain_getvnuma(xch, domid, &numa->nr_vnodes,
+diff --git xen/common/memory.c xen/common/memory.c
+index 75010b7..8249b10 100644
+--- xen/common/memory.c
++++ xen/common/memory.c
+@@ -155,7 +155,7 @@ static void increase_reservation(struct memop_args *a)
+ static void populate_physmap(struct memop_args *a)
+ {
+     struct page_info *page;
+-    unsigned int i, j;
++    unsigned int i, j, node;
+     xen_pfn_t gpfn;
+     struct domain *d = a->domain, *curr_d = current->domain;
+     bool need_tlbflush = false;
+@@ -255,6 +255,15 @@ static void populate_physmap(struct memop_args *a)
+                                  i, a->nr_extents);
+                     goto out;
+                 }
++		
++		if (a->memflags & MEMF_exact_node){
++			node = phys_to_nid(page_to_maddr(page));
++			if (node != MEMF_get_node(a->memflags))
++				printk("I'm here at alloc_domheap_pages"
++				", cannot alloc page from node%d, get "
++				"node%d instead\n",\
++			       	MEMF_get_node(a->memflags), node);
++		}
+ 
+                 if ( unlikely(a->memflags & MEMF_no_tlbflush) )
+                 {
