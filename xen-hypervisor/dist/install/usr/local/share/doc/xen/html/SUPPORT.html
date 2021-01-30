@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Support statement for this release</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+</head>
+<body>
+<header>
+<h1 class="title">Support statement for this release</h1>
+</header>
+<nav id="TOC">
+<ul>
+<li><a href="#release-support"><span class="toc-section-number">1</span> Release Support</a></li>
+<li><a href="#feature-support"><span class="toc-section-number">2</span> Feature Support</a><ul>
+<li><a href="#host-architecture"><span class="toc-section-number">2.1</span> Host Architecture</a><ul>
+<li><a href="#x86-64"><span class="toc-section-number">2.1.1</span> x86-64</a></li>
+<li><a href="#arm-v7-virtualization-extensions"><span class="toc-section-number">2.1.2</span> ARM v7 + Virtualization Extensions</a></li>
+<li><a href="#arm-v8"><span class="toc-section-number">2.1.3</span> ARM v8</a></li>
+</ul></li>
+<li><a href="#host-hardware-support"><span class="toc-section-number">2.2</span> Host hardware support</a><ul>
+<li><a href="#physical-cpu-hotplug"><span class="toc-section-number">2.2.1</span> Physical CPU Hotplug</a></li>
+<li><a href="#physical-memory-hotplug"><span class="toc-section-number">2.2.2</span> Physical Memory Hotplug</a></li>
+<li><a href="#host-acpi-via-domain-0"><span class="toc-section-number">2.2.3</span> Host ACPI (via Domain 0)</a></li>
+<li><a href="#x86intel-platform-qos-technologies"><span class="toc-section-number">2.2.4</span> x86/Intel Platform QoS Technologies</a></li>
+<li><a href="#iommu"><span class="toc-section-number">2.2.5</span> IOMMU</a></li>
+<li><a href="#armgicv3-its"><span class="toc-section-number">2.2.6</span> ARM/GICv3 ITS</a></li>
+</ul></li>
+<li><a href="#guest-type"><span class="toc-section-number">2.3</span> Guest Type</a><ul>
+<li><a href="#x86pv"><span class="toc-section-number">2.3.1</span> x86/PV</a></li>
+<li><a href="#x86hvm"><span class="toc-section-number">2.3.2</span> x86/HVM</a></li>
+<li><a href="#x86pvh"><span class="toc-section-number">2.3.3</span> x86/PVH</a></li>
+<li><a href="#arm"><span class="toc-section-number">2.3.4</span> ARM</a></li>
+</ul></li>
+<li><a href="#toolstack"><span class="toc-section-number">2.4</span> Toolstack</a><ul>
+<li><a href="#xl"><span class="toc-section-number">2.4.1</span> xl</a></li>
+<li><a href="#direct-boot-kernel-image-format"><span class="toc-section-number">2.4.2</span> Direct-boot kernel image format</a></li>
+<li><a href="#dom0-init-support-for-xl"><span class="toc-section-number">2.4.3</span> Dom0 init support for xl</a></li>
+<li><a href="#json-output-support-for-xl"><span class="toc-section-number">2.4.4</span> JSON output support for xl</a></li>
+<li><a href="#open-vswitch-integration-for-xl"><span class="toc-section-number">2.4.5</span> Open vSwitch integration for xl</a></li>
+<li><a href="#virtual-cpu-hotplug"><span class="toc-section-number">2.4.6</span> Virtual cpu hotplug</a></li>
+<li><a href="#qemu-backend-hotplugging-for-xl"><span class="toc-section-number">2.4.7</span> QEMU backend hotplugging for xl</a></li>
+</ul></li>
+<li><a href="#toolstack3rd-party"><span class="toc-section-number">2.5</span> Toolstack/3rd party</a><ul>
+<li><a href="#libvirt-driver-for-xl"><span class="toc-section-number">2.5.1</span> libvirt driver for xl</a></li>
+</ul></li>
+<li><a href="#debugging-analysis-and-crash-post-mortem"><span class="toc-section-number">2.6</span> Debugging, analysis, and crash post-mortem</a><ul>
+<li><a href="#host-serial-console"><span class="toc-section-number">2.6.1</span> Host serial console</a></li>
+<li><a href="#hypervisor-debug-keys"><span class="toc-section-number">2.6.2</span> Hypervisor ‘debug keys’</a></li>
+<li><a href="#hypervisor-synchronous-console-output-sync_console"><span class="toc-section-number">2.6.3</span> Hypervisor synchronous console output (sync_console)</a></li>
+<li><a href="#gdbsx"><span class="toc-section-number">2.6.4</span> gdbsx</a></li>
+<li><a href="#soft-reset-for-pv-guests"><span class="toc-section-number">2.6.5</span> Soft-reset for PV guests</a></li>
+<li><a href="#xentrace"><span class="toc-section-number">2.6.6</span> xentrace</a></li>
+<li><a href="#gcov"><span class="toc-section-number">2.6.7</span> gcov</a></li>
+</ul></li>
+<li><a href="#memory-management"><span class="toc-section-number">2.7</span> Memory Management</a><ul>
+<li><a href="#dynamic-memory-control"><span class="toc-section-number">2.7.1</span> Dynamic memory control</a></li>
+<li><a href="#populate-on-demand-memory"><span class="toc-section-number">2.7.2</span> Populate-on-demand memory</a></li>
+<li><a href="#memory-sharing"><span class="toc-section-number">2.7.3</span> Memory Sharing</a></li>
+<li><a href="#memory-paging"><span class="toc-section-number">2.7.4</span> Memory Paging</a></li>
+<li><a href="#transcendent-memory"><span class="toc-section-number">2.7.5</span> Transcendent Memory</a></li>
+<li><a href="#alternative-p2m"><span class="toc-section-number">2.7.6</span> Alternative p2m</a></li>
+</ul></li>
+<li><a href="#resource-management"><span class="toc-section-number">2.8</span> Resource Management</a><ul>
+<li><a href="#cpu-pools"><span class="toc-section-number">2.8.1</span> CPU Pools</a></li>
+<li><a href="#credit-scheduler"><span class="toc-section-number">2.8.2</span> Credit Scheduler</a></li>
+<li><a href="#credit2-scheduler"><span class="toc-section-number">2.8.3</span> Credit2 Scheduler</a></li>
+<li><a href="#rtds-based-scheduler"><span class="toc-section-number">2.8.4</span> RTDS based Scheduler</a></li>
+<li><a href="#arinc653-scheduler"><span class="toc-section-number">2.8.5</span> ARINC653 Scheduler</a></li>
+<li><a href="#null-scheduler"><span class="toc-section-number">2.8.6</span> Null Scheduler</a></li>
+<li><a href="#numa-scheduler-affinity"><span class="toc-section-number">2.8.7</span> NUMA scheduler affinity</a></li>
+</ul></li>
+<li><a href="#scalability"><span class="toc-section-number">2.9</span> Scalability</a><ul>
+<li><a href="#super-page-support"><span class="toc-section-number">2.9.1</span> Super page support</a></li>
+<li><a href="#x86pvhvm"><span class="toc-section-number">2.9.2</span> x86/PVHVM</a></li>
+</ul></li>
+<li><a href="#high-availability-and-fault-tolerance"><span class="toc-section-number">2.10</span> High Availability and Fault Tolerance</a><ul>
+<li><a href="#remus-fault-tolerance"><span class="toc-section-number">2.10.1</span> Remus Fault Tolerance</a></li>
+<li><a href="#colo-manager"><span class="toc-section-number">2.10.2</span> COLO Manager</a></li>
+<li><a href="#x86vmce"><span class="toc-section-number">2.10.3</span> x86/vMCE</a></li>
+</ul></li>
+<li><a href="#virtual-driver-support-guest-side"><span class="toc-section-number">2.11</span> Virtual driver support, guest side</a><ul>
+<li><a href="#blkfront"><span class="toc-section-number">2.11.1</span> Blkfront</a></li>
+<li><a href="#netfront"><span class="toc-section-number">2.11.2</span> Netfront</a></li>
+<li><a href="#pv-framebuffer-frontend"><span class="toc-section-number">2.11.3</span> PV Framebuffer (frontend)</a></li>
+<li><a href="#pv-console-frontend"><span class="toc-section-number">2.11.4</span> PV Console (frontend)</a></li>
+<li><a href="#pv-keyboard-frontend"><span class="toc-section-number">2.11.5</span> PV keyboard (frontend)</a></li>
+<li><a href="#pv-usb-frontend"><span class="toc-section-number">2.11.6</span> PV USB (frontend)</a></li>
+<li><a href="#pv-scsi-protocol-frontend"><span class="toc-section-number">2.11.7</span> PV SCSI protocol (frontend)</a></li>
+<li><a href="#pv-tpm-frontend"><span class="toc-section-number">2.11.8</span> PV TPM (frontend)</a></li>
+<li><a href="#pv-9pfs-frontend"><span class="toc-section-number">2.11.9</span> PV 9pfs frontend</a></li>
+<li><a href="#pvcalls-frontend"><span class="toc-section-number">2.11.10</span> PVCalls (frontend)</a></li>
+</ul></li>
+<li><a href="#virtual-device-support-host-side"><span class="toc-section-number">2.12</span> Virtual device support, host side</a><ul>
+<li><a href="#blkback"><span class="toc-section-number">2.12.1</span> Blkback</a></li>
+<li><a href="#netback"><span class="toc-section-number">2.12.2</span> Netback</a></li>
+<li><a href="#pv-framebuffer-backend"><span class="toc-section-number">2.12.3</span> PV Framebuffer (backend)</a></li>
+<li><a href="#pv-console-xenconsoled"><span class="toc-section-number">2.12.4</span> PV Console (xenconsoled)</a></li>
+<li><a href="#pv-keyboard-backend"><span class="toc-section-number">2.12.5</span> PV keyboard (backend)</a></li>
+<li><a href="#pv-usb-backend"><span class="toc-section-number">2.12.6</span> PV USB (backend)</a></li>
+<li><a href="#pv-scsi-protocol-backend"><span class="toc-section-number">2.12.7</span> PV SCSI protocol (backend)</a></li>
+<li><a href="#pv-tpm-backend"><span class="toc-section-number">2.12.8</span> PV TPM (backend)</a></li>
+<li><a href="#pv-9pfs-backend"><span class="toc-section-number">2.12.9</span> PV 9pfs (backend)</a></li>
+<li><a href="#pvcalls-backend"><span class="toc-section-number">2.12.10</span> PVCalls (backend)</a></li>
+<li><a href="#online-resize-of-virtual-disks"><span class="toc-section-number">2.12.11</span> Online resize of virtual disks</a></li>
+</ul></li>
+<li><a href="#security"><span class="toc-section-number">2.13</span> Security</a><ul>
+<li><a href="#driver-domains"><span class="toc-section-number">2.13.1</span> Driver Domains</a></li>
+<li><a href="#device-model-stub-domains"><span class="toc-section-number">2.13.2</span> Device Model Stub Domains</a></li>
+<li><a href="#kconfig-expert"><span class="toc-section-number">2.13.3</span> KCONFIG Expert</a></li>
+<li><a href="#live-patching"><span class="toc-section-number">2.13.4</span> Live Patching</a></li>
+<li><a href="#virtual-machine-introspection"><span class="toc-section-number">2.13.5</span> Virtual Machine Introspection</a></li>
+<li><a href="#xsm-flask"><span class="toc-section-number">2.13.6</span> XSM &amp; FLASK</a></li>
+<li><a href="#flask-default-policy"><span class="toc-section-number">2.13.7</span> FLASK default policy</a></li>
+</ul></li>
+<li><a href="#virtual-hardware-hypervisor"><span class="toc-section-number">2.14</span> Virtual Hardware, Hypervisor</a><ul>
+<li><a href="#x86nested-pv"><span class="toc-section-number">2.14.1</span> x86/Nested PV</a></li>
+<li><a href="#x86nested-hvm"><span class="toc-section-number">2.14.2</span> x86/Nested HVM</a></li>
+<li><a href="#vpmu"><span class="toc-section-number">2.14.3</span> vPMU</a></li>
+<li><a href="#x86pci-device-passthrough"><span class="toc-section-number">2.14.4</span> x86/PCI Device Passthrough</a></li>
+<li><a href="#x86multiple-ioreq-servers"><span class="toc-section-number">2.14.5</span> x86/Multiple IOREQ servers</a></li>
+<li><a href="#armnon-pci-device-passthrough"><span class="toc-section-number">2.14.6</span> ARM/Non-PCI device passthrough</a></li>
+<li><a href="#arm-16k-and-64k-page-granularity-in-guests"><span class="toc-section-number">2.14.7</span> ARM: 16K and 64K page granularity in guests</a></li>
+<li><a href="#arm-guest-device-tree-support"><span class="toc-section-number">2.14.8</span> ARM: Guest Device Tree support</a></li>
+<li><a href="#arm-guest-acpi-support"><span class="toc-section-number">2.14.9</span> ARM: Guest ACPI support</a></li>
+</ul></li>
+<li><a href="#virtual-hardware-qemu"><span class="toc-section-number">2.15</span> Virtual Hardware, QEMU</a><ul>
+<li><a href="#x86emulated-platform-devices-qemu"><span class="toc-section-number">2.15.1</span> x86/Emulated platform devices (QEMU):</a></li>
+<li><a href="#x86emulated-network-qemu"><span class="toc-section-number">2.15.2</span> x86/Emulated network (QEMU):</a></li>
+<li><a href="#x86emulated-storage-qemu"><span class="toc-section-number">2.15.3</span> x86/Emulated storage (QEMU):</a></li>
+<li><a href="#x86emulated-graphics-qemu"><span class="toc-section-number">2.15.4</span> x86/Emulated graphics (QEMU):</a></li>
+<li><a href="#x86emulated-audio-qemu"><span class="toc-section-number">2.15.5</span> x86/Emulated audio (QEMU):</a></li>
+<li><a href="#x86emulated-input-qemu"><span class="toc-section-number">2.15.6</span> x86/Emulated input (QEMU):</a></li>
+<li><a href="#x86emulated-serial-card-qemu"><span class="toc-section-number">2.15.7</span> x86/Emulated serial card (QEMU):</a></li>
+<li><a href="#x86host-usb-passthrough-qemu"><span class="toc-section-number">2.15.8</span> x86/Host USB passthrough (QEMU):</a></li>
+</ul></li>
+<li><a href="#virtual-firmware"><span class="toc-section-number">2.16</span> Virtual Firmware</a><ul>
+<li><a href="#x86hvm-ipxe"><span class="toc-section-number">2.16.1</span> x86/HVM iPXE</a></li>
+<li><a href="#x86hvm-bios"><span class="toc-section-number">2.16.2</span> x86/HVM BIOS</a></li>
+<li><a href="#x86hvm-ovmf"><span class="toc-section-number">2.16.3</span> x86/HVM OVMF</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#format-and-definitions"><span class="toc-section-number">3</span> Format and definitions</a><ul>
+<li><a href="#keys-found-in-the-feature-support-subsections"><span class="toc-section-number">3.1</span> Keys found in the Feature Support subsections</a><ul>
+<li><a href="#status"><span class="toc-section-number">3.1.1</span> Status</a></li>
+</ul></li>
+<li><a href="#definition-of-status-labels"><span class="toc-section-number">3.2</span> Definition of Status labels</a><ul>
+<li><a href="#experimental"><span class="toc-section-number">3.2.1</span> Experimental</a></li>
+<li><a href="#tech-preview"><span class="toc-section-number">3.2.2</span> Tech Preview</a></li>
+</ul></li>
+<li><a href="#definition-of-the-status-label-interpretation-tags"><span class="toc-section-number">3.3</span> Definition of the status label interpretation tags</a><ul>
+<li><a href="#functionally-complete"><span class="toc-section-number">3.3.1</span> Functionally complete</a></li>
+<li><a href="#functional-stability"><span class="toc-section-number">3.3.2</span> Functional stability</a></li>
+<li><a href="#interface-stability"><span class="toc-section-number">3.3.3</span> Interface stability</a></li>
+<li><a href="#security-supported"><span class="toc-section-number">3.3.4</span> Security supported</a></li>
+<li><a href="#interaction-with-other-features"><span class="toc-section-number">3.3.5</span> Interaction with other features</a></li>
+<li><a href="#external-security-support"><span class="toc-section-number">3.3.6</span> External security support</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+<p>This document describes the support status and in particular the security support status of the Xen branch within which you find it.</p>
+<p>See the bottom of the file for the definitions of the support status levels etc.</p>
+<h1 id="release-support"><span class="header-section-number">1</span> Release Support</h1>
+<pre><code>Xen-Version: 4.11
+Initial-Release: 2018-07-10
+Supported-Until: 2020-01-10
+Security-Support-Until: 2021-07-10</code></pre>
+<h1 id="feature-support"><span class="header-section-number">2</span> Feature Support</h1>
+<h2 id="host-architecture"><span class="header-section-number">2.1</span> Host Architecture</h2>
+<h3 id="x86-64"><span class="header-section-number">2.1.1</span> x86-64</h3>
+<pre><code>Status: Supported</code></pre>
+<h3 id="arm-v7-virtualization-extensions"><span class="header-section-number">2.1.2</span> ARM v7 + Virtualization Extensions</h3>
+<pre><code>Status: Supported</code></pre>
+<h3 id="arm-v8"><span class="header-section-number">2.1.3</span> ARM v8</h3>
+<pre><code>Status: Supported</code></pre>
+<h2 id="host-hardware-support"><span class="header-section-number">2.2</span> Host hardware support</h2>
+<h3 id="physical-cpu-hotplug"><span class="header-section-number">2.2.1</span> Physical CPU Hotplug</h3>
+<pre><code>Status, x86: Supported</code></pre>
+<h3 id="physical-memory-hotplug"><span class="header-section-number">2.2.2</span> Physical Memory Hotplug</h3>
+<pre><code>Status, x86: Supported</code></pre>
+<h3 id="host-acpi-via-domain-0"><span class="header-section-number">2.2.3</span> Host ACPI (via Domain 0)</h3>
+<pre><code>Status, x86 PV: Supported
+Status, ARM: Experimental</code></pre>
+<h3 id="x86intel-platform-qos-technologies"><span class="header-section-number">2.2.4</span> x86/Intel Platform QoS Technologies</h3>
+<pre><code>Status: Tech Preview</code></pre>
+<h3 id="iommu"><span class="header-section-number">2.2.5</span> IOMMU</h3>
+<pre><code>Status, AMD IOMMU: Supported
+Status, Intel VT-d: Supported
+Status, ARM SMMUv1: Supported
+Status, ARM SMMUv2: Supported</code></pre>
+<h3 id="armgicv3-its"><span class="header-section-number">2.2.6</span> ARM/GICv3 ITS</h3>
+<p>Extension to the GICv3 interrupt controller to support MSI.</p>
+<pre><code>Status: Experimental</code></pre>
+<h2 id="guest-type"><span class="header-section-number">2.3</span> Guest Type</h2>
+<h3 id="x86pv"><span class="header-section-number">2.3.1</span> x86/PV</h3>
+<p>Traditional Xen PV guest</p>
+<p>No hardware requirements</p>
+<pre><code>Status: Supported</code></pre>
+<h3 id="x86hvm"><span class="header-section-number">2.3.2</span> x86/HVM</h3>
+<p>Fully virtualised guest using hardware virtualisation extensions</p>
+<p>Requires hardware virtualisation support (Intel VMX / AMD SVM)</p>
+<pre><code>Status, domU: Supported</code></pre>
+<h3 id="x86pvh"><span class="header-section-number">2.3.3</span> x86/PVH</h3>
+<p>PVH is a next-generation paravirtualized mode designed to take advantage of hardware virtualization support when possible. During development this was sometimes called HVMLite or PVHv2.</p>
+<p>Requires hardware virtualisation support (Intel VMX / AMD SVM).</p>
+<p>Dom0 support requires an IOMMU (Intel VT-d / AMD IOMMU).</p>
+<pre><code>Status, domU: Supported
+Status, dom0: Experimental</code></pre>
+<h3 id="arm"><span class="header-section-number">2.3.4</span> ARM</h3>
+<p>ARM only has one guest type at the moment</p>
+<pre><code>Status: Supported</code></pre>
+<h2 id="toolstack"><span class="header-section-number">2.4</span> Toolstack</h2>
+<h3 id="xl"><span class="header-section-number">2.4.1</span> xl</h3>
+<pre><code>Status: Supported</code></pre>
+<h3 id="direct-boot-kernel-image-format"><span class="header-section-number">2.4.2</span> Direct-boot kernel image format</h3>
+<p>Format which the toolstack accepts for direct-boot kernels</p>
+<pre><code>Supported, x86: bzImage, ELF
+Supported, ARM32: zImage
+Supported, ARM64: Image</code></pre>
+<h3 id="dom0-init-support-for-xl"><span class="header-section-number">2.4.3</span> Dom0 init support for xl</h3>
+<pre><code>Status, SysV: Supported
+Status, systemd: Supported
+Status, BSD-style: Supported</code></pre>
+<h3 id="json-output-support-for-xl"><span class="header-section-number">2.4.4</span> JSON output support for xl</h3>
+<p>Output of information in machine-parseable JSON format</p>
+<pre><code>Status: Experimental</code></pre>
+<h3 id="open-vswitch-integration-for-xl"><span class="header-section-number">2.4.5</span> Open vSwitch integration for xl</h3>
+<pre><code>Status, Linux: Supported</code></pre>
+<h3 id="virtual-cpu-hotplug"><span class="header-section-number">2.4.6</span> Virtual cpu hotplug</h3>
+<pre><code>Status: Supported</code></pre>
+<h3 id="qemu-backend-hotplugging-for-xl"><span class="header-section-number">2.4.7</span> QEMU backend hotplugging for xl</h3>
+<pre><code>Status: Supported</code></pre>
+<h2 id="toolstack3rd-party"><span class="header-section-number">2.5</span> Toolstack/3rd party</h2>
+<h3 id="libvirt-driver-for-xl"><span class="header-section-number">2.5.1</span> libvirt driver for xl</h3>
+<pre><code>Status: Supported, Security support external</code></pre>
+<h2 id="debugging-analysis-and-crash-post-mortem"><span class="header-section-number">2.6</span> Debugging, analysis, and crash post-mortem</h2>
+<h3 id="host-serial-console"><span class="header-section-number">2.6.1</span> Host serial console</h3>
+<pre><code>Status, NS16550: Supported
+Status, EHCI: Supported
+Status, Cadence UART (ARM): Supported
+Status, PL011 UART (ARM): Supported
+Status, Exynos 4210 UART (ARM): Supported
+Status, OMAP UART (ARM): Supported
+Status, SCI(F) UART: Supported</code></pre>
+<h3 id="hypervisor-debug-keys"><span class="header-section-number">2.6.2</span> Hypervisor ‘debug keys’</h3>
+<p>These are functions triggered either from the host serial console, or via the xl ‘debug-keys’ command, which cause Xen to dump various hypervisor state to the console.</p>
+<pre><code>Status: Supported, not security supported</code></pre>
+<h3 id="hypervisor-synchronous-console-output-sync_console"><span class="header-section-number">2.6.3</span> Hypervisor synchronous console output (sync_console)</h3>
+<p>Xen command-line flag to force synchronous console output.</p>
+<pre><code>Status: Supported, not security supported</code></pre>
+<p>Useful for debugging, but not suitable for production environments due to incurred overhead.</p>
+<h3 id="gdbsx"><span class="header-section-number">2.6.4</span> gdbsx</h3>
+<pre><code>Status, x86: Supported, not security supported</code></pre>
+<p>Debugger to debug ELF guests</p>
+<h3 id="soft-reset-for-pv-guests"><span class="header-section-number">2.6.5</span> Soft-reset for PV guests</h3>
+<p>Soft-reset allows a new kernel to start ‘from scratch’ with a fresh VM state, but with all the memory from the previous state of the VM intact. This is primarily designed to allow “crash kernels”, which can do core dumps of memory to help with debugging in the event of a crash.</p>
+<pre><code>Status: Supported</code></pre>
+<h3 id="xentrace"><span class="header-section-number">2.6.6</span> xentrace</h3>
+<p>Tool to capture Xen trace buffer data</p>
+<pre><code>Status, x86: Supported</code></pre>
+<h3 id="gcov"><span class="header-section-number">2.6.7</span> gcov</h3>
+<p>Export hypervisor coverage data suitable for analysis by gcov or lcov.</p>
+<pre><code>Status: Supported, Not security supported</code></pre>
+<h2 id="memory-management"><span class="header-section-number">2.7</span> Memory Management</h2>
+<h3 id="dynamic-memory-control"><span class="header-section-number">2.7.1</span> Dynamic memory control</h3>
+<p>Allows a guest to add or remove memory after boot-time. This is typically done by a guest kernel agent known as a “balloon driver”.</p>
+<pre><code>Status: Supported</code></pre>
+<h3 id="populate-on-demand-memory"><span class="header-section-number">2.7.2</span> Populate-on-demand memory</h3>
+<p>This is a mechanism that allows normal operating systems with only a balloon driver to boot with memory &lt; maxmem.</p>
+<pre><code>Status, x86 HVM: Supported</code></pre>
+<h3 id="memory-sharing"><span class="header-section-number">2.7.3</span> Memory Sharing</h3>
+<p>Allow sharing of identical pages between guests</p>
+<pre><code>Status, x86 HVM: Expermental</code></pre>
+<h3 id="memory-paging"><span class="header-section-number">2.7.4</span> Memory Paging</h3>
+<p>Allow pages belonging to guests to be paged to disk</p>
+<pre><code>Status, x86 HVM: Experimenal</code></pre>
+<h3 id="transcendent-memory"><span class="header-section-number">2.7.5</span> Transcendent Memory</h3>
+<p>Transcendent Memory (tmem) allows the creation of hypervisor memory pools which guests can use to store memory rather than caching in its own memory or swapping to disk. Having these in the hypervisor can allow more efficient aggregate use of memory across VMs.</p>
+<pre><code>Status: Experimental</code></pre>
+<h3 id="alternative-p2m"><span class="header-section-number">2.7.6</span> Alternative p2m</h3>
+<p>Allows external monitoring of hypervisor memory by maintaining multiple physical to machine (p2m) memory mappings.</p>
+<pre><code>Status, x86 HVM: Tech Preview
+Status, ARM: Tech Preview</code></pre>
+<h2 id="resource-management"><span class="header-section-number">2.8</span> Resource Management</h2>
+<h3 id="cpu-pools"><span class="header-section-number">2.8.1</span> CPU Pools</h3>
+<p>Groups physical cpus into distinct groups called “cpupools”, with each pool having the capability of using different schedulers and scheduling properties.</p>
+<pre><code>Status: Supported</code></pre>
+<h3 id="credit-scheduler"><span class="header-section-number">2.8.2</span> Credit Scheduler</h3>
+<p>A weighted proportional fair share virtual CPU scheduler. This is the default scheduler.</p>
+<pre><code>Status: Supported</code></pre>
+<h3 id="credit2-scheduler"><span class="header-section-number">2.8.3</span> Credit2 Scheduler</h3>
+<p>A general purpose scheduler for Xen, designed with particular focus on fairness, responsiveness, and scalability</p>
+<pre><code>Status: Supported</code></pre>
+<h3 id="rtds-based-scheduler"><span class="header-section-number">2.8.4</span> RTDS based Scheduler</h3>
+<p>A soft real-time CPU scheduler built to provide guaranteed CPU capacity to guest VMs on SMP hosts</p>
+<pre><code>Status: Experimental</code></pre>
+<h3 id="arinc653-scheduler"><span class="header-section-number">2.8.5</span> ARINC653 Scheduler</h3>
+<p>A periodically repeating fixed timeslice scheduler.</p>
+<pre><code>Status: Supported</code></pre>
+<p>Currently only single-vcpu domains are supported.</p>
+<h3 id="null-scheduler"><span class="header-section-number">2.8.6</span> Null Scheduler</h3>
+<p>A very simple, very static scheduling policy that always schedules the same vCPU(s) on the same pCPU(s). It is designed for maximum determinism and minimum overhead on embedded platforms.</p>
+<pre><code>Status: Experimental</code></pre>
+<h3 id="numa-scheduler-affinity"><span class="header-section-number">2.8.7</span> NUMA scheduler affinity</h3>
+<p>Enables NUMA aware scheduling in Xen</p>
+<pre><code>Status, x86: Supported</code></pre>
+<h2 id="scalability"><span class="header-section-number">2.9</span> Scalability</h2>
+<h3 id="super-page-support"><span class="header-section-number">2.9.1</span> Super page support</h3>
+<p>NB that this refers to the ability of guests to have higher-level page table entries point directly to memory, improving TLB performance. On ARM, and on x86 in HAP mode, the guest has whatever support is enabled by the hardware.</p>
+<p>This feature is independent of the ARM “page granularity” feature (see below).</p>
+<pre><code>Status, x86 HVM/PVH, HAP: Supported
+Status, x86 HVM/PVH, Shadow, 2MiB: Supported
+Status, ARM: Supported</code></pre>
+<p>On x86 in shadow mode, only 2MiB (L2) superpages are available; furthermore, they do not have the performance characteristics of hardware superpages.</p>
+<h3 id="x86pvhvm"><span class="header-section-number">2.9.2</span> x86/PVHVM</h3>
+<p>This is a useful label for a set of hypervisor features which add paravirtualized functionality to HVM guests for improved performance and scalability. This includes exposing event channels to HVM guests.</p>
+<pre><code>Status: Supported</code></pre>
+<h2 id="high-availability-and-fault-tolerance"><span class="header-section-number">2.10</span> High Availability and Fault Tolerance</h2>
+<h3 id="remus-fault-tolerance"><span class="header-section-number">2.10.1</span> Remus Fault Tolerance</h3>
+<pre><code>Status: Experimental</code></pre>
+<h3 id="colo-manager"><span class="header-section-number">2.10.2</span> COLO Manager</h3>
+<pre><code>Status: Experimental</code></pre>
+<h3 id="x86vmce"><span class="header-section-number">2.10.3</span> x86/vMCE</h3>
+<p>Forward Machine Check Exceptions to appropriate guests</p>
+<pre><code>Status: Supported</code></pre>
+<h2 id="virtual-driver-support-guest-side"><span class="header-section-number">2.11</span> Virtual driver support, guest side</h2>
+<h3 id="blkfront"><span class="header-section-number">2.11.1</span> Blkfront</h3>
+<p>Guest-side driver capable of speaking the Xen PV block protocol</p>
+<pre><code>Status, Linux: Supported
+Status, FreeBSD: Supported, Security support external
+Status, NetBSD: Supported, Security support external
+Status, OpenBSD: Supported, Security support external
+Status, Windows: Supported</code></pre>
+<h3 id="netfront"><span class="header-section-number">2.11.2</span> Netfront</h3>
+<p>Guest-side driver capable of speaking the Xen PV networking protocol</p>
+<pre><code>Status, Linux: Supported
+Status, FreeBSD: Supported, Security support external
+Status, NetBSD: Supported, Security support external
+Status, OpenBSD: Supported, Security support external
+Status, Windows: Supported</code></pre>
+<h3 id="pv-framebuffer-frontend"><span class="header-section-number">2.11.3</span> PV Framebuffer (frontend)</h3>
+<p>Guest-side driver capable of speaking the Xen PV Framebuffer protocol</p>
+<pre><code>Status, Linux (xen-fbfront): Supported</code></pre>
+<h3 id="pv-console-frontend"><span class="header-section-number">2.11.4</span> PV Console (frontend)</h3>
+<p>Guest-side driver capable of speaking the Xen PV console protocol</p>
+<pre><code>Status, Linux (hvc_xen): Supported
+Status, FreeBSD: Supported, Security support external
+Status, NetBSD: Supported, Security support external
+Status, Windows: Supported</code></pre>
+<h3 id="pv-keyboard-frontend"><span class="header-section-number">2.11.5</span> PV keyboard (frontend)</h3>
+<p>Guest-side driver capable of speaking the Xen PV keyboard protocol. Note that the “keyboard protocol” includes mouse / pointer support as well.</p>
+<pre><code>Status, Linux (xen-kbdfront): Supported</code></pre>
+<h3 id="pv-usb-frontend"><span class="header-section-number">2.11.6</span> PV USB (frontend)</h3>
+<pre><code>Status, Linux: Supported</code></pre>
+<h3 id="pv-scsi-protocol-frontend"><span class="header-section-number">2.11.7</span> PV SCSI protocol (frontend)</h3>
+<pre><code>Status, Linux: Supported, with caveats</code></pre>
+<p>NB that while the PV SCSI frontend is in Linux and tested regularly, there is currently no xl support.</p>
+<h3 id="pv-tpm-frontend"><span class="header-section-number">2.11.8</span> PV TPM (frontend)</h3>
+<p>Guest-side driver capable of speaking the Xen PV TPM protocol</p>
+<pre><code>Status, Linux (xen-tpmfront): Tech Preview</code></pre>
+<h3 id="pv-9pfs-frontend"><span class="header-section-number">2.11.9</span> PV 9pfs frontend</h3>
+<p>Guest-side driver capable of speaking the Xen 9pfs protocol</p>
+<pre><code>Status, Linux: Tech Preview</code></pre>
+<h3 id="pvcalls-frontend"><span class="header-section-number">2.11.10</span> PVCalls (frontend)</h3>
+<p>Guest-side driver capable of making pv system calls</p>
+<pre><code>Status, Linux: Tech Preview</code></pre>
+<h2 id="virtual-device-support-host-side"><span class="header-section-number">2.12</span> Virtual device support, host side</h2>
+<p>For host-side virtual device support, “Supported” and “Tech preview” include xl/libxl support unless otherwise noted.</p>
+<h3 id="blkback"><span class="header-section-number">2.12.1</span> Blkback</h3>
+<p>Host-side implementations of the Xen PV block protocol.</p>
+<pre><code>Status, Linux (xen-blkback): Supported
+Status, QEMU (xen_disk), raw format: Supported
+Status, QEMU (xen_disk), qcow format: Supported
+Status, QEMU (xen_disk), qcow2 format: Supported
+Status, QEMU (xen_disk), vhd format: Supported
+Status, FreeBSD (blkback): Supported, Security support external
+Status, NetBSD (xbdback): Supported, security support external
+Status, Blktap2, raw format: Deprecated
+Status, Blktap2, vhd format: Deprecated</code></pre>
+<p>Backends only support raw format unless otherwise specified.</p>
+<h3 id="netback"><span class="header-section-number">2.12.2</span> Netback</h3>
+<p>Host-side implementations of Xen PV network protocol</p>
+<pre><code>Status, Linux (xen-netback): Supported
+Status, FreeBSD (netback): Supported, Security support external
+Status, NetBSD (xennetback): Supported, Security support external</code></pre>
+<h3 id="pv-framebuffer-backend"><span class="header-section-number">2.12.3</span> PV Framebuffer (backend)</h3>
+<p>Host-side implementation of the Xen PV framebuffer protocol</p>
+<pre><code>Status, QEMU: Supported</code></pre>
+<h3 id="pv-console-xenconsoled"><span class="header-section-number">2.12.4</span> PV Console (xenconsoled)</h3>
+<p>Host-side implementation of the Xen PV console protocol</p>
+<pre><code>Status: Supported</code></pre>
+<h3 id="pv-keyboard-backend"><span class="header-section-number">2.12.5</span> PV keyboard (backend)</h3>
+<p>Host-side implementation of the Xen PV keyboard protocol. Note that the “keyboard protocol” includes mouse / pointer support as well.</p>
+<pre><code>Status, QEMU: Supported</code></pre>
+<h3 id="pv-usb-backend"><span class="header-section-number">2.12.6</span> PV USB (backend)</h3>
+<p>Host-side implementation of the Xen PV USB protocol</p>
+<pre><code>Status, QEMU: Supported</code></pre>
+<h3 id="pv-scsi-protocol-backend"><span class="header-section-number">2.12.7</span> PV SCSI protocol (backend)</h3>
+<pre><code>Status, Linux: Experimental</code></pre>
+<p>NB that while the PV SCSI backend is in Linux and tested regularly, there is currently no xl support.</p>
+<h3 id="pv-tpm-backend"><span class="header-section-number">2.12.8</span> PV TPM (backend)</h3>
+<pre><code>Status: Tech Preview</code></pre>
+<h3 id="pv-9pfs-backend"><span class="header-section-number">2.12.9</span> PV 9pfs (backend)</h3>
+<pre><code>Status, QEMU: Tech Preview</code></pre>
+<h3 id="pvcalls-backend"><span class="header-section-number">2.12.10</span> PVCalls (backend)</h3>
+<pre><code>Status, Linux: Experimental</code></pre>
+<p>PVCalls backend has been checked into Linux, but has no xl support.</p>
+<h3 id="online-resize-of-virtual-disks"><span class="header-section-number">2.12.11</span> Online resize of virtual disks</h3>
+<pre><code>Status: Supported</code></pre>
+<h2 id="security"><span class="header-section-number">2.13</span> Security</h2>
+<h3 id="driver-domains"><span class="header-section-number">2.13.1</span> Driver Domains</h3>
+<p>“Driver domains” means allowing non-Domain 0 domains with access to physical devices to act as back-ends.</p>
+<pre><code>Status: Supported, with caveats</code></pre>
+<p>See the appropriate “Device Passthrough” section for more information about security support.</p>
+<h3 id="device-model-stub-domains"><span class="header-section-number">2.13.2</span> Device Model Stub Domains</h3>
+<pre><code>Status: Supported, with caveats</code></pre>
+<p>Vulnerabilities of a device model stub domain to a hostile driver domain (either compromised or untrusted) are excluded from security support.</p>
+<h3 id="kconfig-expert"><span class="header-section-number">2.13.3</span> KCONFIG Expert</h3>
+<pre><code>Status: Experimental</code></pre>
+<h3 id="live-patching"><span class="header-section-number">2.13.4</span> Live Patching</h3>
+<pre><code>Status, x86: Supported
+Status, ARM: Experimental</code></pre>
+<p>Compile time disabled for ARM by default.</p>
+<h3 id="virtual-machine-introspection"><span class="header-section-number">2.13.5</span> Virtual Machine Introspection</h3>
+<pre><code>Status, x86: Supported, not security supported</code></pre>
+<h3 id="xsm-flask"><span class="header-section-number">2.13.6</span> XSM &amp; FLASK</h3>
+<pre><code>Status: Experimental</code></pre>
+<p>Compile time disabled by default.</p>
+<p>Also note that using XSM to delegate various domain control hypercalls to particular other domains, rather than only permitting use by dom0, is also specifically excluded from security support for many hypercalls. Please see XSA-77 for more details.</p>
+<h3 id="flask-default-policy"><span class="header-section-number">2.13.7</span> FLASK default policy</h3>
+<pre><code>Status: Experimental</code></pre>
+<p>The default policy includes FLASK labels and roles for a “typical” Xen-based system with dom0, driver domains, stub domains, domUs, and so on.</p>
+<h2 id="virtual-hardware-hypervisor"><span class="header-section-number">2.14</span> Virtual Hardware, Hypervisor</h2>
+<h3 id="x86nested-pv"><span class="header-section-number">2.14.1</span> x86/Nested PV</h3>
+<p>This means running a Xen hypervisor inside an HVM domain on a Xen system, with support for PV L2 guests only (i.e., hardware virtualization extensions not provided to the guest).</p>
+<pre><code>Status, x86 Xen HVM: Tech Preview</code></pre>
+<p>This works, but has performance limitations because the L1 dom0 can only access emulated L1 devices.</p>
+<p>Xen may also run inside other hypervisors (KVM, Hyper-V, VMWare), but nobody has reported on performance.</p>
+<h3 id="x86nested-hvm"><span class="header-section-number">2.14.2</span> x86/Nested HVM</h3>
+<p>This means providing hardware virtulization support to guest VMs allowing, for instance, a nested Xen to support both PV and HVM guests. It also implies support for other hypervisors, such as KVM, Hyper-V, Bromium, and so on as guests.</p>
+<pre><code>Status, x86 HVM: Experimental</code></pre>
+<h3 id="vpmu"><span class="header-section-number">2.14.3</span> vPMU</h3>
+<p>Virtual Performance Management Unit for HVM guests</p>
+<pre><code>Status, x86: Supported, Not security supported</code></pre>
+<p>Disabled by default (enable with hypervisor command line option). This feature is not security supported: see http://xenbits.xen.org/xsa/advisory-163.html</p>
+<h3 id="x86pci-device-passthrough"><span class="header-section-number">2.14.4</span> x86/PCI Device Passthrough</h3>
+<pre><code>Status, x86 PV: Supported, with caveats
+Status, x86 HVM: Supported, with caveats</code></pre>
+<p>Only systems using IOMMUs are supported.</p>
+<p>Not compatible with migration, populate-on-demand, altp2m, introspection, memory sharing, or memory paging.</p>
+<p>Because of hardware limitations (affecting any operating system or hypervisor), it is generally not safe to use this feature to expose a physical device to completely untrusted guests. However, this feature can still confer significant security benefit when used to remove drivers and backends from domain 0 (i.e., Driver Domains).</p>
+<h3 id="x86multiple-ioreq-servers"><span class="header-section-number">2.14.5</span> x86/Multiple IOREQ servers</h3>
+<p>An IOREQ server provides emulated devices to HVM and PVH guests. QEMU is normally the only IOREQ server, but Xen has support for multiple IOREQ servers. This allows for custom or proprietary device emulators to be used in addition to QEMU.</p>
+<pre><code>Status: Experimental</code></pre>
+<h3 id="armnon-pci-device-passthrough"><span class="header-section-number">2.14.6</span> ARM/Non-PCI device passthrough</h3>
+<pre><code>Status: Supported, not security supported</code></pre>
+<p>Note that this still requires an IOMMU that covers the DMA of the device to be passed through.</p>
+<h3 id="arm-16k-and-64k-page-granularity-in-guests"><span class="header-section-number">2.14.7</span> ARM: 16K and 64K page granularity in guests</h3>
+<pre><code>Status: Supported, with caveats</code></pre>
+<p>No support for QEMU backends in a 16K or 64K domain.</p>
+<h3 id="arm-guest-device-tree-support"><span class="header-section-number">2.14.8</span> ARM: Guest Device Tree support</h3>
+<pre><code>Status: Supported</code></pre>
+<h3 id="arm-guest-acpi-support"><span class="header-section-number">2.14.9</span> ARM: Guest ACPI support</h3>
+<pre><code>Status: Supported</code></pre>
+<h2 id="virtual-hardware-qemu"><span class="header-section-number">2.15</span> Virtual Hardware, QEMU</h2>
+<p>This section describes supported devices available in HVM mode using a qemu devicemodel (the default).</p>
+<pre><code>Status: Support scope restricted </code></pre>
+<p>Note that other devices are available but not security supported.</p>
+<h3 id="x86emulated-platform-devices-qemu"><span class="header-section-number">2.15.1</span> x86/Emulated platform devices (QEMU):</h3>
+<pre><code>Status, piix3: Supported</code></pre>
+<h3 id="x86emulated-network-qemu"><span class="header-section-number">2.15.2</span> x86/Emulated network (QEMU):</h3>
+<pre><code>Status, e1000: Supported
+Status, rtl8193: Supported
+Status, virtio-net: Supported</code></pre>
+<h3 id="x86emulated-storage-qemu"><span class="header-section-number">2.15.3</span> x86/Emulated storage (QEMU):</h3>
+<pre><code>Status, piix3 ide: Supported
+Status, ahci: Supported</code></pre>
+<p>See the section <strong>Blkback</strong> for image formats supported by QEMU.</p>
+<h3 id="x86emulated-graphics-qemu"><span class="header-section-number">2.15.4</span> x86/Emulated graphics (QEMU):</h3>
+<pre><code>Status, cirrus-vga: Supported
+Status, stdvga: Supported</code></pre>
+<h3 id="x86emulated-audio-qemu"><span class="header-section-number">2.15.5</span> x86/Emulated audio (QEMU):</h3>
+<pre><code>Status, sb16: Supported
+Status, es1370: Supported
+Status, ac97: Supported</code></pre>
+<h3 id="x86emulated-input-qemu"><span class="header-section-number">2.15.6</span> x86/Emulated input (QEMU):</h3>
+<pre><code>Status, usbmouse: Supported
+Status, usbtablet: Supported
+Status, ps/2 keyboard: Supported
+Status, ps/2 mouse: Supported</code></pre>
+<h3 id="x86emulated-serial-card-qemu"><span class="header-section-number">2.15.7</span> x86/Emulated serial card (QEMU):</h3>
+<pre><code>Status, UART 16550A: Supported</code></pre>
+<h3 id="x86host-usb-passthrough-qemu"><span class="header-section-number">2.15.8</span> x86/Host USB passthrough (QEMU):</h3>
+<pre><code>Status: Supported, not security supported</code></pre>
+<h2 id="virtual-firmware"><span class="header-section-number">2.16</span> Virtual Firmware</h2>
+<h3 id="x86hvm-ipxe"><span class="header-section-number">2.16.1</span> x86/HVM iPXE</h3>
+<p>Booting a guest via PXE.</p>
+<pre><code>Status: Supported, with caveats</code></pre>
+<p>PXE inherently places full trust of the guest in the network, and so should only be used when the guest network is under the same administrative control as the guest itself.</p>
+<h3 id="x86hvm-bios"><span class="header-section-number">2.16.2</span> x86/HVM BIOS</h3>
+<p>Booting a guest via guest BIOS firmware</p>
+<pre><code>Status, SeaBIOS (qemu-xen): Supported
+Status, ROMBIOS (qemu-xen-traditional): Supported</code></pre>
+<h3 id="x86hvm-ovmf"><span class="header-section-number">2.16.3</span> x86/HVM OVMF</h3>
+<p>OVMF firmware implements the UEFI boot protocol.</p>
+<pre><code>Status, qemu-xen: Supported</code></pre>
+<h1 id="format-and-definitions"><span class="header-section-number">3</span> Format and definitions</h1>
+<p>This file contains prose, and machine-readable fragments. The data in a machine-readable fragment relate to the section and subsection in which it is found.</p>
+<p>The file is in markdown format. The machine-readable fragments are markdown literals containing RFC-822-like (deb822-like) data.</p>
+<p>In each case, descriptions which expand on the name of a feature as provided in the section heading, precede the Status indications. Any paragraphs which follow the Status indication are caveats or qualifications of the information provided in Status fields.</p>
+<h2 id="keys-found-in-the-feature-support-subsections"><span class="header-section-number">3.1</span> Keys found in the Feature Support subsections</h2>
+<h3 id="status"><span class="header-section-number">3.1.1</span> Status</h3>
+<p>This gives the overall status of the feature, including security support status, functional completeness, etc. Refer to the detailed definitions below.</p>
+<p>If support differs based on implementation (for instance, x86 / ARM, Linux / QEMU / FreeBSD), one line for each set of implementations will be listed.</p>
+<h2 id="definition-of-status-labels"><span class="header-section-number">3.2</span> Definition of Status labels</h2>
+<p>Each Status value corresponds to levels of security support, testing, stability, etc., as follows:</p>
+<h3 id="experimental"><span class="header-section-number">3.2.1</span> Experimental</h3>
+<pre><code>Functional completeness: No
+Functional stability: Here be dragons
+Interface stability: Not stable
+Security supported: No</code></pre>
+<h3 id="tech-preview"><span class="header-section-number">3.2.2</span> Tech Preview</h3>
+<pre><code>Functional completeness: Yes
+Functional stability: Quirky
+Interface stability: Provisionally stable
+Security supported: No</code></pre>
+<h4 id="supported"><span class="header-section-number">3.2.2.1</span> Supported</h4>
+<pre><code>Functional completeness: Yes
+Functional stability: Normal
+Interface stability: Yes
+Security supported: Yes</code></pre>
+<h4 id="deprecated"><span class="header-section-number">3.2.2.2</span> Deprecated</h4>
+<pre><code>Functional completeness: Yes
+Functional stability: Quirky
+Interface stability: No (as in, may disappear the next release)
+Security supported: Yes</code></pre>
+<p>All of these may appear in modified form. There are several interfaces, for instance, which are officially declared as not stable; in such a case this feature may be described as “Stable / Interface not stable”.</p>
+<h2 id="definition-of-the-status-label-interpretation-tags"><span class="header-section-number">3.3</span> Definition of the status label interpretation tags</h2>
+<h3 id="functionally-complete"><span class="header-section-number">3.3.1</span> Functionally complete</h3>
+<p>Does it behave like a fully functional feature? Does it work on all expected platforms, or does it only work for a very specific sub-case? Does it have a sensible UI, or do you have to have a deep understanding of the internals to get it to work properly?</p>
+<h3 id="functional-stability"><span class="header-section-number">3.3.2</span> Functional stability</h3>
+<p>What is the risk of it exhibiting bugs?</p>
+<p>General answers to the above:</p>
+<ul>
+<li><p><strong>Here be dragons</strong></p>
+<p>Pretty likely to still crash / fail to work. Not recommended unless you like life on the bleeding edge.</p></li>
+<li><p><strong>Quirky</strong></p>
+<p>Mostly works but may have odd behavior here and there. Recommended for playing around or for non-production use cases.</p></li>
+<li><p><strong>Normal</strong></p>
+<p>Ready for production use</p></li>
+</ul>
+<h3 id="interface-stability"><span class="header-section-number">3.3.3</span> Interface stability</h3>
+<p>If I build a system based on the current interfaces, will they still work when I upgrade to the next version?</p>
+<ul>
+<li><p><strong>Not stable</strong></p>
+<p>Interface is still in the early stages and still fairly likely to be broken in future updates.</p></li>
+<li><p><strong>Provisionally stable</strong></p>
+<p>We’re not yet promising backwards compatibility, but we think this is probably the final form of the interface. It may still require some tweaks.</p></li>
+<li><p><strong>Stable</strong></p>
+<p>We will try very hard to avoid breaking backwards compatibility, and to fix any regressions that are reported.</p></li>
+</ul>
+<h3 id="security-supported"><span class="header-section-number">3.3.4</span> Security supported</h3>
+<p>Will XSAs be issued if security-related bugs are discovered in the functionality?</p>
+<p>If “no”, anyone who finds a security-related bug in the feature will be advised to post it publicly to the Xen Project mailing lists (or contact another security response team, if a relevant one exists).</p>
+<p>Bugs found after the end of <strong>Security-Support-Until</strong> in the Release Support section will receive an XSA if they also affect newer, security-supported, versions of Xen. However, the Xen Project will not provide official fixes for non-security-supported versions.</p>
+<p>Three common ‘diversions’ from the ‘Supported’ category are given the following labels:</p>
+<ul>
+<li><p><strong>Supported, Not security supported</strong></p>
+<p>Functionally complete, normal stability, interface stable, but no security support</p></li>
+<li><p><strong>Supported, Security support external</strong></p>
+<p>This feature is security supported by a different organization (not the XenProject). See <strong>External security support</strong> below.</p></li>
+<li><p><strong>Supported, with caveats</strong></p>
+<p>This feature is security supported only under certain conditions, or support is given only for certain aspects of the feature, or the feature should be used with care because it is easy to use insecurely without knowing it. Additional details will be given in the description.</p></li>
+</ul>
+<h3 id="interaction-with-other-features"><span class="header-section-number">3.3.5</span> Interaction with other features</h3>
+<p>Not all features interact well with all other features. Some features are only for HVM guests; some don’t work with migration, &amp;c.</p>
+<h3 id="external-security-support"><span class="header-section-number">3.3.6</span> External security support</h3>
+<p>The XenProject security team provides security support for XenProject projects.</p>
+<p>We also provide security support for Xen-related code in Linux, which is an external project but doesn’t have its own security process.</p>
+<p>External projects that provide their own security support for Xen-related features are listed below.</p>
+<ul>
+<li><p>QEMU https://wiki.qemu.org/index.php/SecurityProcess</p></li>
+<li><p>Libvirt https://libvirt.org/securityprocess.html</p></li>
+<li><p>FreeBSD https://www.freebsd.org/security/</p></li>
+<li><p>NetBSD http://www.netbsd.org/support/security/</p></li>
+<li><p>OpenBSD https://www.openbsd.org/security.html</p></li>
+</ul>
+</body>
+</html>

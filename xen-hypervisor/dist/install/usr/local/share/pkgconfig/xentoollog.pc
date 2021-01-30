@@ -1,0 +1,9 @@
+prefix=/usr/local
+includedir=/usr/local/include
+libdir=/usr/local/lib
+
+Name: Xentoollog
+Description: The Xentoollog library for Xen hypervisor
+Version: 1.0
+Cflags: -I${includedir}
+Libs: -L${libdir} -lxentoollog

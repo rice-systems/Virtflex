@@ -1,0 +1,618 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>xl-disk-configuration - XL Disk Configuration Syntax</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:root@localhost" />
+</head>
+
+<body>
+
+
+
+<ul id="index">
+  <li><a href="#NAME">NAME</a></li>
+  <li><a href="#SYNTAX">SYNTAX</a></li>
+  <li><a href="#Positional-Parameters">Positional Parameters</a></li>
+  <li><a href="#Other-Parameters-And-Flags">Other Parameters And Flags</a></li>
+  <li><a href="#COLO-Parameters">COLO Parameters</a></li>
+  <li><a href="#Deprecated-Parameters-Prefixes-And-Syntaxes">Deprecated Parameters, Prefixes And Syntaxes</a>
+    <ul>
+      <li><a href="#Missing-format-and-empty-target">Missing format and empty target</a></li>
+    </ul>
+  </li>
+</ul>
+
+<h1 id="NAME">NAME</h1>
+
+<p>xl-disk-configuration - XL Disk Configuration Syntax</p>
+
+<h1 id="SYNTAX">SYNTAX</h1>
+
+<p>This document specifies the xl config file format disk configuration option. It has the following form:</p>
+
+<pre><code>   disk = [ &#39;DISKSPEC&#39;, &#39;DISKSPEC&#39;, ... ]</code></pre>
+
+<p>where each <code>DISKSPEC</code> is in this form:</p>
+
+<pre><code>   [&lt;key&gt;=&lt;value&gt;|&lt;flag&gt;,]*,
+     [&lt;target&gt;, [&lt;format&gt;, [&lt;vdev&gt;, [&lt;access&gt;]]]],
+     [&lt;key&gt;=&lt;value&gt;|&lt;flag&gt;,]*
+     [target=&lt;target&gt;]</code></pre>
+
+<p>For example, these strings are equivalent:</p>
+
+<pre><code>    /dev/vg/guest-volume,,hda
+    /dev/vg/guest-volume,raw,hda,rw
+    format=raw, vdev=hda, access=rw, target=/dev/vg/guest-volume
+    raw:/dev/vg/guest-volume,hda,w  (deprecated, see below)</code></pre>
+
+<p>As are these:</p>
+
+<pre><code>    /root/image.iso,,hdc,cdrom
+    /root/image.iso,,hdc,,cdrom
+    /root/image.iso,raw,hdc,devtype=cdrom
+    format=raw, vdev=hdc, access=ro, devtype=cdrom, target=/root/image.iso
+    raw:/root/image.iso,hdc:cdrom,ro   (deprecated, see below)</code></pre>
+
+<p>These might be specified in the domain config file like this:</p>
+
+<pre><code>    disk = [ &#39;/dev/vg/guest-volume,,hda&#39;, &#39;/root/image.iso,,hdc,cdrom&#39; ]</code></pre>
+
+<p>More formally, the string is a series of comma-separated keyword/value pairs, flags and positional parameters. Parameters which are not bare keywords and which do not contain &quot;=&quot; symbols are assigned to the so-far-unspecified positional parameters, in the order below. The positional parameters may also be specified explicitly by name.</p>
+
+<p>Each parameter may be specified at most once, either as a positional parameter or a named parameter. Default values apply if the parameter is not specified, or if it is specified with an empty value (whether positionally or explicitly).</p>
+
+<p>Whitespace may appear before each parameter and will be ignored.</p>
+
+<h1 id="Positional-Parameters">Positional Parameters</h1>
+
+<dl>
+
+<dt id="target"><b>target</b></dt>
+<dd>
+
+<dl>
+
+<dt id="Description">Description</dt>
+<dd>
+
+<p>Block device or image file path. When this is used as a path, <i>/dev</i> will be prepended if the path doesn&#39;t start with a &#39;/&#39;.</p>
+
+</dd>
+<dt id="Supported-values">Supported values</dt>
+<dd>
+
+<p>N/A</p>
+
+</dd>
+<dt id="Deprecated-values">Deprecated values</dt>
+<dd>
+
+<p>N/A</p>
+
+</dd>
+<dt id="Default-value">Default value</dt>
+<dd>
+
+<p>None. While a path is provided in most cases there is an exception: for a cdrom device, lack of this attribute would imply an empty cdrom drive.</p>
+
+</dd>
+<dt id="Special-syntax">Special syntax</dt>
+<dd>
+
+<p>When this parameter is specified by name, ie with the <code>target=</code> syntax in the configuration file, it consumes the whole rest of the <code>DISKSPEC</code> including trailing whitespaces. Therefore in that case it must come last. This is permissible even if an empty value for the target was already specified as a positional parameter. This is the only way to specify a target string containing metacharacters such as commas and (in some cases) colons, which would otherwise be misinterpreted.</p>
+
+<p>Future parameter and flag names will start with an ascii letter and contain only ascii alphanumerics, hyphens and underscores, and will not be legal as vdevs. Targets which might match that syntax should not be specified as positional parameters.</p>
+
+</dd>
+</dl>
+
+</dd>
+<dt id="format"><b>format</b></dt>
+<dd>
+
+<dl>
+
+<dt id="Description1">Description</dt>
+<dd>
+
+<p>Specifies the format of image file.</p>
+
+</dd>
+<dt id="Supported-values1">Supported values</dt>
+<dd>
+
+<p>raw, qcow, qcow2, vhd, qed</p>
+
+</dd>
+<dt id="Deprecated-values1">Deprecated values</dt>
+<dd>
+
+<p>None</p>
+
+</dd>
+<dt id="Default-value1">Default value</dt>
+<dd>
+
+<p>raw</p>
+
+</dd>
+</dl>
+
+</dd>
+<dt id="vdev"><b>vdev</b></dt>
+<dd>
+
+<dl>
+
+<dt id="Description2">Description</dt>
+<dd>
+
+<p>Virtual device as seen by the guest (also referred to as guest drive designation in some specifications). <a href="http://man.he.net/man7/xen-vbd-interface">xen-vbd-interface(7)</a></p>
+
+</dd>
+<dt id="Supported-values2">Supported values</dt>
+<dd>
+
+<p>hd[x], xvd[x], sd[x] etc. Please refer to the above specification for further details.</p>
+
+</dd>
+<dt id="Deprecated-values2">Deprecated values</dt>
+<dd>
+
+<p>None</p>
+
+</dd>
+<dt id="Default-Value">Default Value</dt>
+<dd>
+
+<p>None, this parameter is mandatory.</p>
+
+</dd>
+</dl>
+
+</dd>
+<dt id="access"><b>access</b></dt>
+<dd>
+
+<dl>
+
+<dt id="Description3">Description</dt>
+<dd>
+
+<p>Specified access control information. Whether or not the block device is provided to the guest in read-only or read-write mode depends on this attribute.</p>
+
+</dd>
+<dt id="Supported-values3">Supported values</dt>
+<dd>
+
+<p><code>ro</code>, <code>r</code> (specifies read-only)</p>
+
+<p><code>rw</code>, <code>w</code> (specifies read/write)</p>
+
+</dd>
+<dt id="Deprecated-values3">Deprecated values</dt>
+<dd>
+
+<p>None</p>
+
+</dd>
+<dt id="Default-value2">Default value</dt>
+<dd>
+
+<p><code>rw</code> unless devtype=cdrom, in which case <code>r</code></p>
+
+</dd>
+</dl>
+
+</dd>
+</dl>
+
+<h1 id="Other-Parameters-And-Flags">Other Parameters And Flags</h1>
+
+<dl>
+
+<dt id="devtype-DEVTYPE"><b>devtype</b>=<i>DEVTYPE</i></dt>
+<dd>
+
+<dl>
+
+<dt id="Description4">Description</dt>
+<dd>
+
+<p>Qualifies virtual device type.</p>
+
+</dd>
+<dt id="Supported-values4">Supported values</dt>
+<dd>
+
+<p>cdrom</p>
+
+</dd>
+<dt id="Deprecated-values4">Deprecated values</dt>
+<dd>
+
+<p>None</p>
+
+</dd>
+<dt id="Mandatory">Mandatory</dt>
+<dd>
+
+<p>No</p>
+
+</dd>
+</dl>
+
+</dd>
+<dt id="cdrom"><b>cdrom</b></dt>
+<dd>
+
+<p>Convenience alias for &quot;devtype=cdrom&quot;.</p>
+
+</dd>
+<dt id="backend-DOMAIN-NAME"><b>backend</b>=<i>DOMAIN-NAME</i></dt>
+<dd>
+
+<dl>
+
+<dt id="Description5">Description</dt>
+<dd>
+
+<p>Designates a backend domain for the device</p>
+
+</dd>
+<dt id="Supported-values5">Supported values</dt>
+<dd>
+
+<p>Valid domain names</p>
+
+</dd>
+<dt id="Mandatory1">Mandatory</dt>
+<dd>
+
+<p>No</p>
+
+</dd>
+</dl>
+
+<p>Specifies the backend domain which this device should attach to. This defaults to domain 0. Specifying another domain requires setting up a driver domain which is outside the scope of this document.</p>
+
+</dd>
+<dt id="backendtype-TYPE"><b>backendtype</b>=<i>TYPE</i></dt>
+<dd>
+
+<dl>
+
+<dt id="Description6">Description</dt>
+<dd>
+
+<p>Specifies the backend implementation to use</p>
+
+</dd>
+<dt id="Supported-values6">Supported values</dt>
+<dd>
+
+<p>phy, tap, qdisk</p>
+
+</dd>
+<dt id="Mandatory2">Mandatory</dt>
+<dd>
+
+<p>No</p>
+
+</dd>
+<dt id="Default-value3">Default value</dt>
+<dd>
+
+<p>Automatically determine which backend to use.</p>
+
+</dd>
+</dl>
+
+<p>This does not affect the guest&#39;s view of the device. It controls which software implementation of the Xen backend driver is used.</p>
+
+<p>Not all backend drivers support all combinations of other options. For example, &quot;phy&quot; does not support formats other than &quot;raw&quot;. Normally this option should not be specified, in which case libxl will automatically determine the most suitable backend.</p>
+
+</dd>
+<dt id="script-SCRIPT"><b>script</b>=<i>SCRIPT</i></dt>
+<dd>
+
+<p>Specifies that <b>target</b> is not a normal host path, but rather information to be interpreted by the executable program <i>SCRIPT</i>, (looked for in <i>/etc/xen/scripts</i>, if it doesn&#39;t contain a slash).</p>
+
+<p>These scripts are normally called &quot;block-<i>SCRIPT</i>&quot;.</p>
+
+</dd>
+<dt id="direct-io-safe"><b>direct-io-safe</b></dt>
+<dd>
+
+<dl>
+
+<dt id="Description7">Description</dt>
+<dd>
+
+<p>Disables non-O_DIRECT workaround</p>
+
+</dd>
+<dt id="Supported-values7">Supported values</dt>
+<dd>
+
+<p>absent, present</p>
+
+</dd>
+<dt id="Mandatory3">Mandatory</dt>
+<dd>
+
+<p>No</p>
+
+</dd>
+<dt id="Default-value4">Default value</dt>
+<dd>
+
+<p>absent (workaround may be enabled)</p>
+
+</dd>
+</dl>
+
+<p>There is a memory lifetime bug in some driver domain (dom0) kernels which can cause crashes when using O_DIRECT. The bug occurs due to a mismatch between the backend-visible lifetime of pages used for the Xen PV network protocol and that expected by the backend kernel&#39;s networking subsystem. This can cause crashes when using certain backends with certain underlying storage.</p>
+
+<p>See: <a href="http://lists.xen.org/archives/html/xen-devel/2012-12/msg01154.html">http://lists.xen.org/archives/html/xen-devel/2012-12/msg01154.html</a></p>
+
+<p>For this reason, (this version of) the Xen libxl toolstack disables O_DIRECT when using the qemu-based Xen PV backend (<code>qdisk</code>).</p>
+
+<p>However, this workaround has performance and scaling implications, and it is only necessary if the underlying device is a network filesystem. If the underlying device is not, then it is good to disable it; that is what this option is for.</p>
+
+<p>This option simply requests that the workaround be disabled. (However, not all backends versions which use the workaround understand this option, so this is on a best effort basis.)</p>
+
+<p>It&#39;s important to note that if you are storing the VM disk on a network filesystem or a network block device (NFS or ISCSI) it might not be safe to use this option. Otherwise specifying it is safe and can give better performances.</p>
+
+<p>If in the future the bug is fixed properly this option will then be silently ignored.</p>
+
+</dd>
+<dt id="discard-no-discard"><b>discard</b> / <b>no-discard</b></dt>
+<dd>
+
+<dl>
+
+<dt id="Description8">Description</dt>
+<dd>
+
+<p>Request that backend advertise discard support to frontend</p>
+
+</dd>
+<dt id="Supported-values8">Supported values</dt>
+<dd>
+
+<p>discard, no-discard</p>
+
+</dd>
+<dt id="Mandatory4">Mandatory</dt>
+<dd>
+
+<p>No</p>
+
+</dd>
+<dt id="Default-value5">Default value</dt>
+<dd>
+
+<p>discard</p>
+
+</dd>
+</dl>
+
+<p>An advisory setting for the backend driver, specifying whether to advertise discard support (TRIM, UNMAP) to the frontend. The real benefit of this option is to be able to force it off rather than on. It can be used to disable &quot;hole punching&quot; for file based backends which were intentionally created non-sparse to avoid fragmentation of the file.</p>
+
+</dd>
+</dl>
+
+<h1 id="COLO-Parameters">COLO Parameters</h1>
+
+<dl>
+
+<dt id="colo"><b>colo</b></dt>
+<dd>
+
+<p>Enable COLO HA for disk. For better understanding block replication on QEMU, please refer to: <a href="http://wiki.qemu.org/Features/BlockReplication">http://wiki.qemu.org/Features/BlockReplication</a> Note that the COLO configuration settings should be considered unstable. They may change incompatibly in future versions of Xen.</p>
+
+</dd>
+<dt id="colo-host"><b>colo-host</b></dt>
+<dd>
+
+<dl>
+
+<dt id="Description9">Description</dt>
+<dd>
+
+<p>Secondary host&#39;s address</p>
+
+</dd>
+<dt id="Mandatory5">Mandatory</dt>
+<dd>
+
+<p>Yes when COLO enabled</p>
+
+</dd>
+</dl>
+
+</dd>
+<dt id="colo-port"><b>colo-port</b></dt>
+<dd>
+
+<dl>
+
+<dt id="Description10">Description</dt>
+<dd>
+
+<p>Secondary port. We will run a nbd server on secondary host, and the nbd server will listen this port.</p>
+
+</dd>
+<dt id="Mandatory6">Mandatory</dt>
+<dd>
+
+<p>Yes when COLO enabled</p>
+
+</dd>
+</dl>
+
+</dd>
+<dt id="colo-export"><b>colo-export</b></dt>
+<dd>
+
+<dl>
+
+<dt id="Description11">Description</dt>
+<dd>
+
+<p>We will run a nbd server on secondary host, exportname is the nbd server&#39;s disk export name.</p>
+
+</dd>
+<dt id="Mandatory7">Mandatory</dt>
+<dd>
+
+<p>Yes when COLO enabled</p>
+
+</dd>
+</dl>
+
+</dd>
+<dt id="active-disk"><b>active-disk</b></dt>
+<dd>
+
+<dl>
+
+<dt id="Description12">Description</dt>
+<dd>
+
+<p>This is used by secondary. Secondary guest&#39;s write will be buffered in this disk.</p>
+
+</dd>
+<dt id="Mandatory8">Mandatory</dt>
+<dd>
+
+<p>Yes when COLO enabled</p>
+
+</dd>
+</dl>
+
+</dd>
+<dt id="hidden-disk"><b>hidden-disk</b></dt>
+<dd>
+
+<dl>
+
+<dt id="Description13">Description</dt>
+<dd>
+
+<p>This is used by secondary. It buffers the original content that is modified by the primary VM.</p>
+
+</dd>
+<dt id="Mandatory9">Mandatory</dt>
+<dd>
+
+<p>Yes when COLO enabled</p>
+
+</dd>
+</dl>
+
+</dd>
+</dl>
+
+<h1 id="Deprecated-Parameters-Prefixes-And-Syntaxes">Deprecated Parameters, Prefixes And Syntaxes</h1>
+
+<p>Deprecated forms are acceptable and are intended work compatibly with xend and xl from xen 4.1. In future they may print a warning. Support for deprecated parameters and syntaxes are likely to be dropped in future versions of xl.</p>
+
+<p>There is support for a deprecated old syntax for <code>DISKSPEC</code>:</p>
+
+<pre><code>  [&lt;format&gt;:][&lt;target&gt;],&lt;vdev&gt;[:&lt;devtype&gt;],&lt;access&gt;   (deprecated)</code></pre>
+
+<p>This syntax also supports deprecated prefixes, described below. These are found prepended to the format parameter - eg <code>tap:aio:qcow:</code>.</p>
+
+<dl>
+
+<dt id="format1"><b>format</b></dt>
+<dd>
+
+<dl>
+
+<dt id="Description14">Description</dt>
+<dd>
+
+<p>Specifies the format (deprecated)</p>
+
+</dd>
+<dt id="Supported-values9">Supported values</dt>
+<dd>
+
+<p>raw: qcow2: vhd:</p>
+
+</dd>
+</dl>
+
+<p>In xend and old versions of libxl it was necessary to specify the format with a prefix. For compatibility, these three prefixes are recognised as specifying the corresponding format. They are equivalent to <code>format=FORMAT</code> or the specification of <b>format</b> (without a colon) as a positional parameter.</p>
+
+</dd>
+<dt id="script"><b>script</b></dt>
+<dd>
+
+<dl>
+
+<dt id="Description15">Description</dt>
+<dd>
+
+<p>Specifies the script (deprecated)</p>
+
+</dd>
+<dt id="Supported-values10">Supported values</dt>
+<dd>
+
+<p>iscsi: nbd: enbd: drbd:</p>
+
+</dd>
+</dl>
+
+<p>In xend and old versions of libxl it was necessary to specify the &quot;script&quot; (see above) with a prefix. For compatibility, these four prefixes are recognised as specifying the corresponding script. They are equivalent to <code>script=block-SCRIPT</code>.</p>
+
+</dd>
+<dt id="deprecated-prefix"><b>deprecated-prefix</b></dt>
+<dd>
+
+<dl>
+
+<dt id="Description16">Description</dt>
+<dd>
+
+<p>Deprecated prefix, ignored</p>
+
+</dd>
+<dt id="Supported-values11">Supported values</dt>
+<dd>
+
+<p>tapdisk: tap2: aio: ioemu: file: phy:</p>
+
+</dd>
+</dl>
+
+<p>Various prefixes were required by xend and older versions of libxl to make the block devices work. In some cases these options would override the backend type, but in other cases they would be ignored in favour of &quot;making it work&quot;; in yet other cases it would be necessary to specify several of these, for example:</p>
+
+<pre><code>  tap:aio:/some/path...</code></pre>
+
+<p>All of these prefixes are now stripped and ignored.</p>
+
+</dd>
+</dl>
+
+<h2 id="Missing-format-and-empty-target">Missing format and empty target</h2>
+
+<p>The following syntax is also supported:</p>
+
+<pre><code>  ,&lt;vdev&gt;:&lt;devtype&gt;,&lt;access&gt;   (deprecated)</code></pre>
+
+<p>This is solely for compatibility with xend&#39;s syntax for empty cdroms, which is (for example) <code>,hdc:cdrom,r</code>.</p>
+
+
+</body>
+
+</html>
+
+

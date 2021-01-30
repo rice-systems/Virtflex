@@ -1,0 +1,1166 @@
+<h1>PV Calls Protocol version 1</h1>
+
+<h2>Glossary</h2>
+
+<p>The following is a list of terms and definitions used in the Xen
+community. If you are a Xen contributor you can skip this section.</p>
+
+<ul>
+<li><p>PV</p>
+
+<p>Short for paravirtualized.</p></li>
+<li><p>Dom0</p>
+
+<p>First virtual machine that boots. In most configurations Dom0 is
+privileged and has control over hardware devices, such as network
+cards, graphic cards, etc.</p></li>
+<li><p>DomU</p>
+
+<p>Regular unprivileged Xen virtual machine.</p></li>
+<li><p>Domain</p>
+
+<p>A Xen virtual machine. Dom0 and all DomUs are all separate Xen
+domains.</p></li>
+<li><p>Guest</p>
+
+<p>Same as domain: a Xen virtual machine.</p></li>
+<li><p>Frontend</p>
+
+<p>Each DomU has one or more paravirtualized frontend drivers to access
+disks, network, console, graphics, etc. The presence of PV devices is
+advertized on XenStore, a cross domain key-value database. Frontends
+are similar in intent to the virtio drivers in Linux.</p></li>
+<li><p>Backend</p>
+
+<p>A Xen paravirtualized backend typically runs in Dom0 and it is used to
+export disks, network, console, graphics, etcs, to DomUs. Backends can
+live both in kernel space and in userspace. For example xen-blkback
+lives under drivers/block in the Linux kernel and xen_disk lives under
+hw/block in QEMU. Paravirtualized backends are similar in intent to
+virtio device emulators.</p></li>
+<li><p>VMX and SVM</p>
+
+<p>On Intel processors, VMX is the CPU flag for VT-x, hardware
+virtualization support. It corresponds to SVM on AMD processors.</p></li>
+</ul>
+
+<h2>Rationale</h2>
+
+<p>PV Calls is a paravirtualized protocol that allows the implementation of
+a set of POSIX functions in a different domain. The PV Calls frontend
+sends POSIX function calls to the backend, which implements them and
+returns a value to the frontend and acts on the function call.</p>
+
+<p>This version of the document covers networking function calls, such as
+connect, accept, bind, release, listen, poll, recvmsg and sendmsg; but
+the protocol is meant to be easily extended to cover different sets of
+calls. Unimplemented commands return ENOTSUP.</p>
+
+<p>PV Calls provide the following benefits:
+* full visibility of the guest behavior on the backend domain, allowing
+  for inexpensive filtering and manipulation of any guest calls
+* excellent performance</p>
+
+<p>Specifically, PV Calls for networking offer these advantages:
+* guest networking works out of the box with VPNs, wireless networks and
+  any other complex configurations on the host
+* guest services listen on ports bound directly to the backend domain IP
+  addresses
+* localhost becomes a secure host wide network for inter-VMs
+  communications</p>
+
+<h2>Design</h2>
+
+<h3>Why Xen?</h3>
+
+<p>PV Calls are part of an effort to create a secure runtime environment
+for containers (Open Containers Initiative images to be precise). PV
+Calls are based on Xen, although porting them to other hypervisors is
+possible. Xen was chosen because of its security and isolation
+properties and because it supports PV guests, a type of virtual machines
+that does not require hardware virtualization extensions (VMX on Intel
+processors and SVM on AMD processors). This is important because PV
+Calls is meant for containers and containers are often run on top of
+public cloud instances, which do not support nested VMX (or SVM) as of
+today (early 2017). Xen PV guests are lightweight, minimalist, and do
+not require machine emulation: all properties that make them a good fit
+for this project.</p>
+
+<h3>Xenstore</h3>
+
+<p>The frontend and the backend connect via [xenstore] to
+exchange information. The toolstack creates front and back nodes with
+state of [XenbusStateInitialising]. The protocol node name
+is <strong>pvcalls</strong>.  There can only be one PV Calls frontend per domain.</p>
+
+<h4>Frontend XenBus Nodes</h4>
+
+<p>version
+     Values:         <string></p>
+
+<pre><code> Protocol version, chosen among the ones supported by the backend
+ (see **versions** under [Backend XenBus Nodes]). Currently the
+ value must be "1".
+</code></pre>
+
+<p>port
+     Values:         <uint32_t></p>
+
+<pre><code> The identifier of the Xen event channel used to signal activity
+ in the command ring.
+</code></pre>
+
+<p>ring-ref
+     Values:         <uint32_t></p>
+
+<pre><code> The Xen grant reference granting permission for the backend to map
+ the sole page in a single page sized command ring.
+</code></pre>
+
+<h4>Backend XenBus Nodes</h4>
+
+<p>versions
+     Values:         <string></p>
+
+<pre><code> List of comma separated protocol versions supported by the backend.
+ For example "1,2,3". Currently the value is just "1", as there is
+ only one version.
+</code></pre>
+
+<p>max-page-order
+     Values:         <uint32_t></p>
+
+<pre><code> The maximum supported size of a memory allocation in units of
+ log2n(machine pages), e.g. 1 = 2 pages, 2 == 4 pages, etc. It must
+ be 1 or more.
+</code></pre>
+
+<p>function-calls
+     Values:         <uint32_t></p>
+
+<pre><code> Value "0" means that no calls are supported.
+ Value "1" means that socket, connect, release, bind, listen, accept
+ and poll are supported.
+</code></pre>
+
+<h4>State Machine</h4>
+
+<p>Initialization:</p>
+
+<pre><code>*Front*                               *Back*
+XenbusStateInitialising               XenbusStateInitialising
+- Query virtual device                - Query backend device
+  properties.                           identification data.
+- Setup OS device instance.           - Publish backend features
+- Allocate and initialize the           and transport parameters
+  request ring.                                      |
+- Publish transport parameters                       |
+  that will be in effect during                      V
+  this connection.                            XenbusStateInitWait
+             |
+             |
+             V
+   XenbusStateInitialised
+
+                                      - Query frontend transport parameters.
+                                      - Connect to the request ring and
+                                        event channel.
+                                                     |
+                                                     |
+                                                     V
+                                             XenbusStateConnected
+
+ - Query backend device properties.
+ - Finalize OS virtual device
+   instance.
+             |
+             |
+             V
+    XenbusStateConnected
+</code></pre>
+
+<p>Once frontend and backend are connected, they have a shared page, which
+will is used to exchange messages over a ring, and an event channel,
+which is used to send notifications.</p>
+
+<p>Shutdown:</p>
+
+<pre><code>*Front*                            *Back*
+XenbusStateConnected               XenbusStateConnected
+            |
+            |
+            V
+   XenbusStateClosing
+
+                                   - Unmap grants
+                                   - Unbind event channels
+                                             |
+                                             |
+                                             V
+                                     XenbusStateClosing
+
+- Unbind event channels
+- Free rings
+- Free data structures
+           |
+           |
+           V
+   XenbusStateClosed
+
+                                   - Free remaining data structures
+                                             |
+                                             |
+                                             V
+                                     XenbusStateClosed
+</code></pre>
+
+<h3>Commands Ring</h3>
+
+<p>The shared ring is used by the frontend to forward POSIX function calls
+to the backend. We shall refer to this ring as <strong>commands ring</strong> to
+distinguish it from other rings which can be created later in the
+lifecycle of the protocol (see [Indexes Page and Data ring]). The grant
+reference for shared page for this ring is shared on xenstore (see
+[Frontend XenBus Nodes]). The ring format is defined using the familiar
+<code>DEFINE_RING_TYPES</code> macro (<code>xen/include/public/io/ring.h</code>).  Frontend
+requests are allocated on the ring using the <code>RING_GET_REQUEST</code> macro.
+The list of commands below is in calling order.</p>
+
+<p>The format is defined as follows:</p>
+
+<pre><code>#define PVCALLS_SOCKET         0
+#define PVCALLS_CONNECT        1
+#define PVCALLS_RELEASE        2
+#define PVCALLS_BIND           3
+#define PVCALLS_LISTEN         4
+#define PVCALLS_ACCEPT         5
+#define PVCALLS_POLL           6
+
+struct xen_pvcalls_request {
+    uint32_t req_id; /* private to guest, echoed in response */
+    uint32_t cmd;    /* command to execute */
+    union {
+        struct xen_pvcalls_socket {
+            uint64_t id;
+            uint32_t domain;
+            uint32_t type;
+            uint32_t protocol;
+            #ifdef CONFIG_X86_32
+            uint8_t pad[4];
+            #endif
+        } socket;
+        struct xen_pvcalls_connect {
+            uint64_t id;
+            uint8_t addr[28];
+            uint32_t len;
+            uint32_t flags;
+            grant_ref_t ref;
+            uint32_t evtchn;
+            #ifdef CONFIG_X86_32
+            uint8_t pad[4];
+            #endif
+        } connect;
+        struct xen_pvcalls_release {
+            uint64_t id;
+            uint8_t reuse;
+            #ifdef CONFIG_X86_32
+            uint8_t pad[7];
+            #endif
+        } release;
+        struct xen_pvcalls_bind {
+            uint64_t id;
+            uint8_t addr[28];
+            uint32_t len;
+        } bind;
+        struct xen_pvcalls_listen {
+            uint64_t id;
+            uint32_t backlog;
+            #ifdef CONFIG_X86_32
+            uint8_t pad[4];
+            #endif
+        } listen;
+        struct xen_pvcalls_accept {
+            uint64_t id;
+            uint64_t id_new;
+            grant_ref_t ref;
+            uint32_t evtchn;
+        } accept;
+        struct xen_pvcalls_poll {
+            uint64_t id;
+        } poll;
+        /* dummy member to force sizeof(struct xen_pvcalls_request) to match across archs */
+        struct xen_pvcalls_dummy {
+            uint8_t dummy[56];
+        } dummy;
+    } u;
+};
+</code></pre>
+
+<p>The first two fields are common for every command. Their binary layout
+is:</p>
+
+<pre><code>0       4       8
++-------+-------+
+|req_id |  cmd  |
++-------+-------+
+</code></pre>
+
+<ul>
+<li><strong>req_id</strong> is generated by the frontend and is a cookie used to
+identify one specific request/response pair of commands. Not to be
+confused with any command <strong>id</strong> which are used to identify a socket
+across multiple commands, see [Socket].</li>
+<li><p><strong>cmd</strong> is the command requested by the frontend:</p>
+
+<ul>
+<li><code>PVCALLS_SOCKET</code>:  0</li>
+<li><code>PVCALLS_CONNECT</code>: 1</li>
+<li><code>PVCALLS_RELEASE</code>: 2</li>
+<li><code>PVCALLS_BIND</code>:    3</li>
+<li><code>PVCALLS_LISTEN</code>:  4</li>
+<li><code>PVCALLS_ACCEPT</code>:  5</li>
+<li><code>PVCALLS_POLL</code>:    6</li>
+</ul></li>
+</ul>
+
+<p>Both fields are echoed back by the backend. See [Socket families and
+address format] for the format of the <strong>addr</strong> field of connect and
+bind. The maximum size of command specific arguments is 56 bytes. Any
+future command that requires more than that will need a bump the
+<strong>version</strong> of the protocol.</p>
+
+<p>Similarly to other Xen ring based protocols, after writing a request to
+the ring, the frontend calls <code>RING_PUSH_REQUESTS_AND_CHECK_NOTIFY</code> and
+issues an event channel notification when a notification is required.</p>
+
+<p>Backend responses are allocated on the ring using the <code>RING_GET_RESPONSE</code> macro.
+The format is the following:</p>
+
+<pre><code>struct xen_pvcalls_response {
+    uint32_t req_id;
+    uint32_t cmd;
+    int32_t ret;
+    uint32_t pad;
+    union {
+        struct _xen_pvcalls_socket {
+            uint64_t id;
+        } socket;
+        struct _xen_pvcalls_connect {
+            uint64_t id;
+        } connect;
+        struct _xen_pvcalls_release {
+            uint64_t id;
+        } release;
+        struct _xen_pvcalls_bind {
+            uint64_t id;
+        } bind;
+        struct _xen_pvcalls_listen {
+            uint64_t id;
+        } listen;
+        struct _xen_pvcalls_accept {
+            uint64_t id;
+        } accept;
+        struct _xen_pvcalls_poll {
+            uint64_t id;
+        } poll;
+        struct _xen_pvcalls_dummy {
+            uint8_t dummy[8];
+        } dummy;
+    } u;
+};
+</code></pre>
+
+<p>The first four fields are common for every response. Their binary layout
+is:</p>
+
+<pre><code>0       4       8       12      16
++-------+-------+-------+-------+
+|req_id |  cmd  |  ret  |  pad  |
++-------+-------+-------+-------+
+</code></pre>
+
+<ul>
+<li><strong>req_id</strong>: echoed back from request</li>
+<li><strong>cmd</strong>: echoed back from request</li>
+<li><strong>ret</strong>: return value, identifies success (0) or failure (see [Error
+numbers] in further sections). If the <strong>cmd</strong> is not supported by the
+backend, ret is ENOTSUP.</li>
+<li><strong>pad</strong>: padding</li>
+</ul>
+
+<p>After calling <code>RING_PUSH_RESPONSES_AND_CHECK_NOTIFY</code>, the backend checks whether
+it needs to notify the frontend and does so via event channel.</p>
+
+<p>A description of each command, their additional request and response
+fields follow.</p>
+
+<h4>Socket</h4>
+
+<p>The <strong>socket</strong> operation corresponds to the POSIX <a href="http://pubs.opengroup.org/onlinepubs/009695399/functions/socket.html">socket</a>
+function. It creates a new socket of the specified family, type and
+protocol. <strong>id</strong> is freely chosen by the frontend and references this
+specific socket from this point forward. See [Socket families and
+address format] to see which ones are supported by different versions of
+the protocol.</p>
+
+<p>Request fields:</p>
+
+<ul>
+<li><strong>cmd</strong> value: 0</li>
+<li>additional fields:
+<ul>
+<li><strong>id</strong>: generated by the frontend, it identifies the new socket</li>
+<li><strong>domain</strong>: the communication domain</li>
+<li><strong>type</strong>: the socket type</li>
+<li><strong>protocol</strong>: the particular protocol to be used with the socket, usually 0</li>
+</ul></li>
+</ul>
+
+<p>Request binary layout:</p>
+
+<pre><code>8       12      16      20     24       28
++-------+-------+-------+-------+-------+
+|       id      |domain | type  |protoco|
++-------+-------+-------+-------+-------+
+</code></pre>
+
+<p>Response additional fields:</p>
+
+<ul>
+<li><strong>id</strong>: echoed back from request</li>
+</ul>
+
+<p>Response binary layout:</p>
+
+<pre><code>16       20       24
++-------+--------+
+|       id       |
++-------+--------+
+</code></pre>
+
+<p>Return value:</p>
+
+<ul>
+<li>0 on success</li>
+<li>See the <a href="http://pubs.opengroup.org/onlinepubs/7908799/xns/connect.html">POSIX socket function</a> for error names; see
+[Error numbers] in further sections.</li>
+</ul>
+
+<h4>Connect</h4>
+
+<p>The <strong>connect</strong> operation corresponds to the POSIX <a href="http://pubs.opengroup.org/onlinepubs/7908799/xns/connect.html">connect</a>
+function. It connects a previously created socket (identified by <strong>id</strong>)
+to the specified address.</p>
+
+<p>The connect operation creates a new shared ring, which we'll call <strong>data
+ring</strong>. The data ring is used to send and receive data from the
+socket. The connect operation passes two additional parameters:
+<strong>evtchn</strong> and <strong>ref</strong>. <strong>evtchn</strong> is the port number of a new event
+channel which will be used for notifications of activity on the data
+ring. <strong>ref</strong> is the grant reference of the <strong>indexes page</strong>: a page
+which contains shared indexes that point to the write and read locations
+in the <strong>data ring</strong>. The <strong>indexes page</strong> also contains the full array
+of grant references for the <strong>data ring</strong>. When the frontend issues a
+<strong>connect</strong> command, the backend:</p>
+
+<ul>
+<li>finds its own internal socket corresponding to <strong>id</strong></li>
+<li>connects the socket to <strong>addr</strong></li>
+<li>maps the grant reference <strong>ref</strong>, the indexes page, see struct
+pvcalls<em>data</em>intf</li>
+<li>maps all the grant references listed in <code>struct pvcalls_data_intf</code> and
+uses them as shared memory for the <strong>data ring</strong></li>
+<li>bind the <strong>evtchn</strong></li>
+<li>replies to the frontend</li>
+</ul>
+
+<p>The [Indexes Page and Data ring] format will be described in the
+following section. The <strong>data ring</strong> is unmapped and freed upon issuing
+a <strong>release</strong> command on the active socket identified by <strong>id</strong>. A
+frontend state change can also cause data rings to be unmapped.</p>
+
+<p>Request fields:</p>
+
+<ul>
+<li><strong>cmd</strong> value: 0</li>
+<li>additional fields:
+<ul>
+<li><strong>id</strong>: identifies the socket</li>
+<li><strong>addr</strong>: address to connect to, see [Socket families and address format]</li>
+<li><strong>len</strong>: address length up to 28 octets</li>
+<li><strong>flags</strong>: flags for the connection, reserved for future usage</li>
+<li><strong>ref</strong>: grant reference of the indexes page</li>
+<li><strong>evtchn</strong>: port number of the evtchn to signal activity on the <strong>data ring</strong></li>
+</ul></li>
+</ul>
+
+<p>Request binary layout:</p>
+
+<pre><code>8       12      16      20      24      28      32      36      40      44
++-------+-------+-------+-------+-------+-------+-------+-------+-------+
+|       id      |                            addr                       |
++-------+-------+-------+-------+-------+-------+-------+-------+-------+
+| len   | flags |  ref  |evtchn |
++-------+-------+-------+-------+
+</code></pre>
+
+<p>Response additional fields:</p>
+
+<ul>
+<li><strong>id</strong>: echoed back from request</li>
+</ul>
+
+<p>Response binary layout:</p>
+
+<pre><code>16      20      24
++-------+-------+
+|       id      |
++-------+-------+
+</code></pre>
+
+<p>Return value:</p>
+
+<ul>
+<li>0 on success</li>
+<li>See the <a href="http://pubs.opengroup.org/onlinepubs/7908799/xns/connect.html">POSIX connect function</a> for error names; see
+[Error numbers] in further sections.</li>
+</ul>
+
+<h4>Release</h4>
+
+<p>The <strong>release</strong> operation closes an existing active or a passive socket.</p>
+
+<p>When a release command is issued on a passive socket, the backend
+releases it and frees its internal mappings. When a release command is
+issued for an active socket, the data ring and indexes page are also
+unmapped and freed:</p>
+
+<ul>
+<li>frontend sends release command for an active socket</li>
+<li>backend releases the socket</li>
+<li>backend unmaps the data ring</li>
+<li>backend unmaps the indexes page</li>
+<li>backend unbinds the event channel</li>
+<li>backend replies to frontend with an <strong>ret</strong> value</li>
+<li>frontend frees data ring, indexes page and unbinds event channel</li>
+</ul>
+
+<p>Request fields:</p>
+
+<ul>
+<li><strong>cmd</strong> value: 1</li>
+<li>additional fields:
+<ul>
+<li><strong>id</strong>: identifies the socket</li>
+<li><strong>reuse</strong>: an optimization hint for the backend. The field is
+ignored for passive sockets. When set to 1, the frontend lets the
+backend know that it will reuse exactly the same set of grant pages
+(indexes page and data ring) and event channel when creating one of
+the next active sockets. The backend can take advantage of it by
+delaying unmapping grants and unbinding the event channel. The
+backend is free to ignore the hint. Reused data rings are found by
+<strong>ref</strong>, the grant reference of the page containing the indexes.</li>
+</ul></li>
+</ul>
+
+<p>Request binary layout:</p>
+
+<pre><code>8       12      16    17
++-------+-------+-----+
+|       id      |reuse|
++-------+-------+-----+
+</code></pre>
+
+<p>Response additional fields:</p>
+
+<ul>
+<li><strong>id</strong>: echoed back from request</li>
+</ul>
+
+<p>Response binary layout:</p>
+
+<pre><code>16      20      24
++-------+-------+
+|       id      |
++-------+-------+
+</code></pre>
+
+<p>Return value:</p>
+
+<ul>
+<li>0 on success</li>
+<li>See the <a href="http://pubs.opengroup.org/onlinepubs/7908799/xns/shutdown.html">POSIX shutdown function</a> for error names; see
+[Error numbers] in further sections.</li>
+</ul>
+
+<h4>Bind</h4>
+
+<p>The <strong>bind</strong> operation corresponds to the POSIX <a href="http://pubs.opengroup.org/onlinepubs/7908799/xns/bind.html">bind</a> function.
+It assigns the address passed as parameter to a previously created
+socket, identified by <strong>id</strong>. <strong>Bind</strong>, <strong>listen</strong> and <strong>accept</strong> are
+the three operations required to have fully working passive sockets and
+should be issued in that order.</p>
+
+<p>Request fields:</p>
+
+<ul>
+<li><strong>cmd</strong> value: 2</li>
+<li>additional fields:
+<ul>
+<li><strong>id</strong>: identifies the socket</li>
+<li><strong>addr</strong>: address to connect to, see [Socket families and address
+format]</li>
+<li><strong>len</strong>: address length up to 28 octets</li>
+</ul></li>
+</ul>
+
+<p>Request binary layout:</p>
+
+<pre><code>8       12      16      20      24      28      32      36      40      44
++-------+-------+-------+-------+-------+-------+-------+-------+-------+
+|       id      |                            addr                       |
++-------+-------+-------+-------+-------+-------+-------+-------+-------+
+|  len  |
++-------+
+</code></pre>
+
+<p>Response additional fields:</p>
+
+<ul>
+<li><strong>id</strong>: echoed back from request</li>
+</ul>
+
+<p>Response binary layout:</p>
+
+<pre><code>16      20      24
++-------+-------+
+|       id      |
++-------+-------+
+</code></pre>
+
+<p>Return value:</p>
+
+<ul>
+<li>0 on success</li>
+<li>See the <a href="http://pubs.opengroup.org/onlinepubs/7908799/xns/bind.html">POSIX bind function</a> for error names; see
+[Error numbers] in further sections.</li>
+</ul>
+
+<h4>Listen</h4>
+
+<p>The <strong>listen</strong> operation marks the socket as a passive socket. It corresponds to
+the <a href="http://pubs.opengroup.org/onlinepubs/7908799/xns/listen.html">POSIX listen function</a>.</p>
+
+<p>Reuqest fields:</p>
+
+<ul>
+<li><strong>cmd</strong> value: 3</li>
+<li>additional fields:
+<ul>
+<li><strong>id</strong>: identifies the socket</li>
+<li><strong>backlog</strong>: the maximum length to which the queue of pending
+connections may grow in number of elements</li>
+</ul></li>
+</ul>
+
+<p>Request binary layout:</p>
+
+<pre><code>8       12      16      20
++-------+-------+-------+
+|       id      |backlog|
++-------+-------+-------+
+</code></pre>
+
+<p>Response additional fields:</p>
+
+<ul>
+<li><strong>id</strong>: echoed back from request</li>
+</ul>
+
+<p>Response binary layout:</p>
+
+<pre><code>16      20      24
++-------+-------+
+|       id      |
++-------+-------+
+</code></pre>
+
+<p>Return value:
+  - 0 on success
+  - See the <a href="http://pubs.opengroup.org/onlinepubs/7908799/xns/listen.html">POSIX listen function</a> for error names; see
+    [Error numbers] in further sections.</p>
+
+<h4>Accept</h4>
+
+<p>The <strong>accept</strong> operation extracts the first connection request on the
+queue of pending connections for the listening socket identified by
+<strong>id</strong> and creates a new connected socket. The id of the new socket is
+also chosen by the frontend and passed as an additional field of the
+accept request struct (<strong>id_new</strong>). See the <a href="http://pubs.opengroup.org/onlinepubs/7908799/xns/accept.html">POSIX accept function</a>
+as reference.</p>
+
+<p>Similarly to the <strong>connect</strong> operation, <strong>accept</strong> creates new [Indexes
+Page and Data ring]. The <strong>data ring</strong> is used to send and receive data from
+the socket. The <strong>accept</strong> operation passes two additional parameters:
+<strong>evtchn</strong> and <strong>ref</strong>. <strong>evtchn</strong> is the port number of a new event
+channel which will be used for notifications of activity on the data
+ring. <strong>ref</strong> is the grant reference of the <strong>indexes page</strong>: a page
+which contains shared indexes that point to the write and read locations
+in the <strong>data ring</strong>. The <strong>indexes page</strong> also contains the full array of
+grant references for the <strong>data ring</strong>.</p>
+
+<p>The backend will reply to the request only when a new connection is
+successfully accepted, i.e. the backend does not return EAGAIN or
+EWOULDBLOCK.</p>
+
+<p>Example workflow:</p>
+
+<ul>
+<li>frontend issues an <strong>accept</strong> request</li>
+<li>backend waits for a connection to be available on the socket</li>
+<li>a new connection becomes available</li>
+<li>backend accepts the new connection</li>
+<li>backend creates an internal mapping from <strong>id_new</strong> to the new socket</li>
+<li>backend maps the grant reference <strong>ref</strong>, the indexes page, see struct
+pvcalls<em>data</em>intf</li>
+<li>backend maps all the grant references listed in <code>struct
+pvcalls_data_intf</code> and uses them as shared memory for the new data
+ring <strong>in</strong> and <strong>out</strong> arrays</li>
+<li>backend binds to the <strong>evtchn</strong></li>
+<li>backend replies to the frontend with a <strong>ret</strong> value</li>
+</ul>
+
+<p>Request fields:</p>
+
+<ul>
+<li><strong>cmd</strong> value: 4</li>
+<li>additional fields:
+<ul>
+<li><strong>id</strong>: id of listening socket</li>
+<li><strong>id_new</strong>: id of the new socket</li>
+<li><strong>ref</strong>: grant reference of the indexes page</li>
+<li><strong>evtchn</strong>: port number of the evtchn to signal activity on the data ring</li>
+</ul></li>
+</ul>
+
+<p>Request binary layout:</p>
+
+<pre><code>8       12      16      20      24      28      32
++-------+-------+-------+-------+-------+-------+
+|       id      |    id_new     |  ref  |evtchn |
++-------+-------+-------+-------+-------+-------+
+</code></pre>
+
+<p>Response additional fields:</p>
+
+<ul>
+<li><strong>id</strong>: id of the listening socket, echoed back from request</li>
+</ul>
+
+<p>Response binary layout:</p>
+
+<pre><code>16      20      24
++-------+-------+
+|       id      |
++-------+-------+
+</code></pre>
+
+<p>Return value:</p>
+
+<ul>
+<li>0 on success</li>
+<li>See the <a href="http://pubs.opengroup.org/onlinepubs/7908799/xns/accept.html">POSIX accept function</a> for error names; see
+[Error numbers] in further sections.</li>
+</ul>
+
+<h4>Poll</h4>
+
+<p>In this version of the protocol, the <strong>poll</strong> operation is only valid
+for passive sockets. For active sockets, the frontend should look at the
+indexes on the <strong>indexes page</strong>. When a new connection is available in
+the queue of the passive socket, the backend generates a response and
+notifies the frontend.</p>
+
+<p>Request fields:</p>
+
+<ul>
+<li><strong>cmd</strong> value: 5</li>
+<li>additional fields:
+<ul>
+<li><strong>id</strong>: identifies the listening socket</li>
+</ul></li>
+</ul>
+
+<p>Request binary layout:</p>
+
+<pre><code>8       12      16
++-------+-------+
+|       id      |
++-------+-------+
+</code></pre>
+
+<p>Response additional fields:</p>
+
+<ul>
+<li><strong>id</strong>: echoed back from request</li>
+</ul>
+
+<p>Response binary layout:</p>
+
+<pre><code>16       20       24
++--------+--------+
+|        id       |
++--------+--------+
+</code></pre>
+
+<p>Return value:</p>
+
+<ul>
+<li>0 on success</li>
+<li>See the <a href="http://pubs.opengroup.org/onlinepubs/7908799/xsh/poll.html">POSIX poll function</a> for error names; see
+[Error numbers] in further sections.</li>
+</ul>
+
+<h4>Expanding the protocol</h4>
+
+<p>It is possible to introduce new commands without changing the protocol
+ABI. Naturally, a feature flag among the backend xenstore nodes should
+advertise the availability of a new set of commands.</p>
+
+<p>If a new command requires parameters in struct xen<em>pvcalls</em>request
+larger than 56 bytes, which is the current size of the request, then the
+protocol version should be increased. One way to implement the large
+request structure without disrupting the current ABI is to introduce a
+new command, such as PVCALLS<em>CONNECT</em>EXTENDED, and a flag to specify
+that the request uses two request slots, for a total of 112 bytes.</p>
+
+<h4>Error numbers</h4>
+
+<p>The numbers corresponding to the error names specified by POSIX are:</p>
+
+<pre><code>[EPERM]         -1
+[ENOENT]        -2
+[ESRCH]         -3
+[EINTR]         -4
+[EIO]           -5
+[ENXIO]         -6
+[E2BIG]         -7
+[ENOEXEC]       -8
+[EBADF]         -9
+[ECHILD]        -10
+[EAGAIN]        -11
+[EWOULDBLOCK]   -11
+[ENOMEM]        -12
+[EACCES]        -13
+[EFAULT]        -14
+[EBUSY]         -16
+[EEXIST]        -17
+[EXDEV]         -18
+[ENODEV]        -19
+[EISDIR]        -21
+[EINVAL]        -22
+[ENFILE]        -23
+[EMFILE]        -24
+[ENOSPC]        -28
+[EROFS]         -30
+[EMLINK]        -31
+[EDOM]          -33
+[ERANGE]        -34
+[EDEADLK]       -35
+[EDEADLOCK]     -35
+[ENAMETOOLONG]  -36
+[ENOLCK]        -37
+[ENOTEMPTY]     -39
+[ENOSYS]        -38
+[ENODATA]       -61
+[ETIME]         -62
+[EBADMSG]       -74
+[EOVERFLOW]     -75
+[EILSEQ]        -84
+[ERESTART]      -85
+[ENOTSOCK]      -88
+[EOPNOTSUPP]    -95
+[EAFNOSUPPORT]  -97
+[EADDRINUSE]    -98
+[EADDRNOTAVAIL] -99
+[ENOBUFS]       -105
+[EISCONN]       -106
+[ENOTCONN]      -107
+[ETIMEDOUT]     -110
+[ENOTSUP]      -524
+</code></pre>
+
+<h4>Socket families and address format</h4>
+
+<p>The following definitions and explicit sizes, together with POSIX
+<a href="http://pubs.opengroup.org/onlinepubs/7908799/xns/syssocket.h.html">sys/socket.h</a> and <a href="http://pubs.opengroup.org/onlinepubs/000095399/basedefs/netinet/in.h.html">netinet/in.h</a> define socket families and
+address format. Please be aware that only the <strong>domain</strong> <code>AF_INET</code>, <strong>type</strong>
+<code>SOCK_STREAM</code> and <strong>protocol</strong> <code>0</code> are supported by this version of the
+specification, others return ENOTSUP.</p>
+
+<pre><code>#define AF_UNSPEC   0
+#define AF_UNIX     1   /* Unix domain sockets      */
+#define AF_LOCAL    1   /* POSIX name for AF_UNIX   */
+#define AF_INET     2   /* Internet IP Protocol     */
+#define AF_INET6    10  /* IP version 6         */
+
+#define SOCK_STREAM 1
+#define SOCK_DGRAM  2
+#define SOCK_RAW    3
+
+/* generic address format */
+struct sockaddr {
+    uint16_t sa_family_t;
+    char sa_data[26];
+};
+
+struct in_addr {
+    uint32_t s_addr;
+};
+
+/* AF_INET address format */
+struct sockaddr_in {
+    uint16_t         sa_family_t;
+    uint16_t         sin_port;
+    struct in_addr   sin_addr;
+    char             sin_zero[20];
+};
+</code></pre>
+
+<h3>Indexes Page and Data ring</h3>
+
+<p>Data rings are used for sending and receiving data over a connected socket. They
+are created upon a successful <strong>accept</strong> or <strong>connect</strong> command.
+The <strong>sendmsg</strong> and <strong>recvmsg</strong> calls are implemented by sending data and
+receiving data from a data ring, and updating the corresponding indexes
+on the <strong>indexes page</strong>.</p>
+
+<p>Firstly, the <strong>indexes page</strong> is shared by a <strong>connect</strong> or <strong>accept</strong>
+command, see <strong>ref</strong> parameter in their sections. The content of the
+<strong>indexes page</strong> is represented by <code>struct pvcalls_ring_intf</code>, see
+below. The structure contains the list of grant references which
+constitute the <strong>in</strong> and <strong>out</strong> buffers of the data ring, see ref[]
+below. The backend maps the grant references contiguously. Of the
+resulting shared memory, the first half is dedicated to the <strong>in</strong> array
+and the second half to the <strong>out</strong> array. They are used as circular
+buffers for transferring data, and, together, they are the data ring.</p>
+
+<p>+---------------------------+                 Indexes page
+  | Command ring:             |                 +----------------------+
+  | @0: xen<em>pvcalls</em>connect:  |                 |@0 pvcalls<em>data</em>intf: |
+  | @44: ref  +-------------------------------->+@76: ring_order = 1   |
+  |                           |                 |@80: ref[0]+          |
+  +---------------------------+                 |@84: ref[1]+          |
+                                                |           |          |
+                                                |           |          |
+                                                +----------------------+
+                                                            |
+                                                            v (data ring)
+                                                    +-------+-----------+
+                                                    |  @0->4098: in     |
+                                                    |  ref[0]           |
+                                                    |-------------------|
+                                                    |  @4099->8196: out |
+                                                    |  ref[1]           |
+                                                    +-------------------+</p>
+
+<h4>Indexes Page Structure</h4>
+
+<pre><code>typedef uint32_t PVCALLS_RING_IDX;
+
+struct pvcalls_data_intf {
+    PVCALLS_RING_IDX in_cons, in_prod;
+    int32_t in_error;
+
+    uint8_t pad[52];
+
+    PVCALLS_RING_IDX out_cons, out_prod;
+    int32_t out_error;
+
+    uint8_t pad[52];
+
+    uint32_t ring_order;
+    grant_ref_t ref[];
+};
+
+/* not actually C compliant (ring_order changes from socket to socket) */
+struct pvcalls_data {
+    char in[((1&lt;&lt;ring_order)&lt;&lt;PAGE_SHIFT)/2];
+    char out[((1&lt;&lt;ring_order)&lt;&lt;PAGE_SHIFT)/2];
+};
+</code></pre>
+
+<ul>
+<li><strong>ring_order</strong>
+It represents the order of the data ring. The following list of grant
+references is of <code>(1 &lt;&lt; ring_order)</code> elements. It cannot be greater than
+<strong>max-page-order</strong>, as specified by the backend on XenBus. It has to
+be one at minimum.</li>
+<li><strong>ref[]</strong>
+The list of grant references which will contain the actual data. They are
+mapped contiguosly in virtual memory. The first half of the pages is the
+<strong>in</strong> array, the second half is the <strong>out</strong> array. The arrays must
+have a power of two size. Together, their size is <code>(1 &lt;&lt; ring_order) *
+PAGE_SIZE</code>.</li>
+<li><strong>in</strong> is an array used as circular buffer
+It contains data read from the socket. The producer is the backend, the
+consumer is the frontend.</li>
+<li><strong>out</strong> is an array used as circular buffer
+It contains data to be written to the socket. The producer is the frontend,
+the consumer is the backend.</li>
+<li><strong>in<em>cons</strong> and <strong>in</em>prod</strong>
+Consumer and producer indexes for data read from the socket. They keep track
+of how much data has already been consumed by the frontend from the <strong>in</strong>
+array. <strong>in<em>prod</strong> is increased by the backend, after writing data to <strong>in</strong>.
+<strong>in</em>cons</strong> is increased by the frontend, after reading data from <strong>in</strong>.</li>
+<li><strong>out<em>cons</strong>, <strong>out</em>prod</strong>
+Consumer and producer indexes for the data to be written to the socket. They
+keep track of how much data has been written by the frontend to <strong>out</strong> and
+how much data has already been consumed by the backend. <strong>out<em>prod</strong> is
+increased by the frontend, after writing data to <strong>out</strong>. <strong>out</em>cons</strong> is
+increased by the backend, after reading data from <strong>out</strong>.</li>
+<li><strong>in<em>error</strong> and <strong>out</em>error</strong> They signal errors when reading from the socket
+(<strong>in<em>error</strong>) or when writing to the socket (<strong>out</em>error</strong>). 0 means no
+errors. When an error occurs, no further reads or writes operations are
+performed on the socket. In the case of an orderly socket shutdown (i.e. read
+returns 0) <strong>in<em>error</strong> is set to ENOTCONN. <strong>in</em>error</strong> and <strong>out_error</strong>
+are never set to EAGAIN or EWOULDBLOCK (the data is written to the
+ring as soon as it is available).</li>
+</ul>
+
+<p>The binary layout of <code>struct pvcalls_data_intf</code> follows:</p>
+
+<pre><code>0         4         8         12           64        68        72        76 
++---------+---------+---------+-----//-----+---------+---------+---------+
+| in_cons | in_prod |in_error |  padding   |out_cons |out_prod |out_error|
++---------+---------+---------+-----//-----+---------+---------+---------+
+
+76        80        84        88      4092      4096
++---------+---------+---------+----//---+---------+
+|ring_orde|  ref[0] |  ref[1] |         |  ref[N] |
++---------+---------+---------+----//---+---------+
+</code></pre>
+
+<p><strong>N.B</strong> For one page, N is maximum 991 ((4096-132)/4), but given that N needs
+to be a power of two, actually max N is 512 (ring_order = 9).</p>
+
+<h4>Data Ring Structure</h4>
+
+<p>The binary layout of the data ring follow:</p>
+
+<pre><code>0         ((1&lt;&lt;ring_order)&lt;&lt;PAGE_SHIFT)/2       ((1&lt;&lt;ring_order)&lt;&lt;PAGE_SHIFT)
++------------//-------------+------------//-------------+
+|            in             |           out             |
++------------//-------------+------------//-------------+
+</code></pre>
+
+<h4>Why ring.h is not needed</h4>
+
+<p>Many Xen PV protocols use the macros provided by [ring.h] to manage
+their shared ring for communication. PVCalls does not, because the [Data
+Ring Structure] actually comes with two rings: the <strong>in</strong> ring and the
+<strong>out</strong> ring. Each of them is mono-directional, and there is no static
+request size: the producer writes opaque data to the ring. On the other
+end, in [ring.h] they are combined, and the request size is static and
+well-known. In PVCalls:</p>
+
+<p>in -> backend to frontend only
+  out-> frontend to backend only</p>
+
+<p>In the case of the <strong>in</strong> ring, the frontend is the consumer, and the
+backend is the producer. Everything is the same but mirrored for the
+<strong>out</strong> ring.</p>
+
+<p>The producer, the backend in this case, never reads from the <strong>in</strong>
+ring. In fact, the producer doesn't need any notifications unless the
+ring is full. This version of the protocol doesn't take advantage of it,
+leaving room for optimizations.</p>
+
+<p>On the other end, the consumer always requires notifications, unless it
+is already actively reading from the ring. The producer can figure it
+out, without any additional fields in the protocol, by comparing the
+indexes at the beginning and the end of the function. This is similar to
+what [ring.h] does.</p>
+
+<h4>Workflow</h4>
+
+<p>The <strong>in</strong> and <strong>out</strong> arrays are used as circular buffers:</p>
+
+<pre><code>0                               sizeof(array) == ((1&lt;&lt;ring_order)&lt;&lt;PAGE_SHIFT)/2
++-----------------------------------+
+|to consume|    free    |to consume |
++-----------------------------------+
+           ^            ^
+           prod         cons
+
+0                               sizeof(array)
++-----------------------------------+
+|  free    | to consume |   free    |
++-----------------------------------+
+           ^            ^
+           cons         prod
+</code></pre>
+
+<p>The following function is provided to calculate how many bytes are currently
+left unconsumed in an array:</p>
+
+<pre><code>#define _MASK_PVCALLS_IDX(idx, ring_size) ((idx) &amp; (ring_size-1))
+
+static inline PVCALLS_RING_IDX pvcalls_ring_unconsumed(PVCALLS_RING_IDX prod,
+        PVCALLS_RING_IDX cons,
+        PVCALLS_RING_IDX ring_size)
+{
+    PVCALLS_RING_IDX size;
+
+    if (prod == cons)
+        return 0;
+
+    prod = _MASK_PVCALLS_IDX(prod, ring_size);
+    cons = _MASK_PVCALLS_IDX(cons, ring_size);
+
+    if (prod == cons)
+        return ring_size;
+
+    if (prod &gt; cons)
+        size = prod - cons;
+    else {
+        size = ring_size - cons;
+        size += prod;
+    }
+    return size;
+}
+</code></pre>
+
+<p>The producer (the backend for <strong>in</strong>, the frontend for <strong>out</strong>) writes to the
+array in the following way:</p>
+
+<ul>
+<li>read <em>[in|out]_cons</em>, <em>[in|out]_prod</em>, <em>[in|out]_error</em> from shared memory</li>
+<li>general memory barrier</li>
+<li>return on <em>[in|out]_error</em></li>
+<li>write to array at position <em>[in|out]_prod</em> up to <em>[in|out]_cons</em>,
+wrapping around the circular buffer when necessary</li>
+<li>write memory barrier</li>
+<li>increase <em>[in|out]_prod</em></li>
+<li>notify the other end via evtchn</li>
+</ul>
+
+<p>The consumer (the backend for <strong>out</strong>, the frontend for <strong>in</strong>) reads from the
+array in the following way:</p>
+
+<ul>
+<li>read <em>[in|out]_prod</em>, <em>[in|out]_cons</em>, <em>[in|out]_error</em> from shared memory</li>
+<li>read memory barrier</li>
+<li>return on <em>[in|out]_error</em></li>
+<li>read from array at position <em>[in|out]_cons</em> up to <em>[in|out]_prod</em>,
+wrapping around the circular buffer when necessary</li>
+<li>general memory barrier</li>
+<li>increase <em>[in|out]_cons</em></li>
+<li>notify the other end via evtchn</li>
+</ul>
+
+<p>The producer takes care of writing only as many bytes as available in
+the buffer up to <em>[in|out]_cons</em>. The consumer takes care of reading
+only as many bytes as available in the buffer up to <em>[in|out]_prod</em>.
+<em>[in|out]_error</em> is set by the backend when an error occurs writing or
+reading from the socket.</p>

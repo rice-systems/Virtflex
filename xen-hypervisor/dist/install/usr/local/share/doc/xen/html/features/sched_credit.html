@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Revision 1" />
+  <title>Credit Scheduler</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+</head>
+<body>
+<header>
+<h1 class="title">Credit Scheduler</h1>
+<p class="author">Revision 1</p>
+</header>
+<nav id="TOC">
+<ul>
+<li><a href="#basics"><span class="toc-section-number">1</span> Basics</a></li>
+<li><a href="#overview"><span class="toc-section-number">2</span> Overview</a></li>
+<li><a href="#user-details"><span class="toc-section-number">3</span> User details</a></li>
+<li><a href="#technical-details"><span class="toc-section-number">4</span> Technical details</a></li>
+<li><a href="#limitations"><span class="toc-section-number">5</span> Limitations</a></li>
+<li><a href="#testing"><span class="toc-section-number">6</span> Testing</a></li>
+<li><a href="#references"><span class="toc-section-number">7</span> References</a></li>
+<li><a href="#history"><span class="toc-section-number">8</span> History</a></li>
+</ul>
+</nav>
+
+<h1 id="basics"><span class="header-section-number">1</span> Basics</h1>
+<table style="width:97%;">
+<colgroup>
+<col style="width: 23%" />
+<col style="width: 73%" />
+</colgroup>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">Status:</td>
+<td style="text-align: left;"><strong>Supported</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Component:</td>
+<td style="text-align: left;">Hypervisor</td>
+</tr>
+</tbody>
+</table>
+<h1 id="overview"><span class="header-section-number">2</span> Overview</h1>
+<p>Credit (also known as Credit1) is the default virtual CPU (vCPU) scheduler of the Xen hypervisor.</p>
+<p>It is a general purpose, weighted fair-share scheduler.</p>
+<h1 id="user-details"><span class="header-section-number">3</span> User details</h1>
+<p>Xen supports multiple schedulers. As said, Credit is the default, so it is used automatically, unless the <code>sched=$SCHED</code> (with <code>$SCHED</code> different than <code>credit</code>) parameter is passed to Xen via the bootloader.</p>
+<p>Once the system is live, for creating a cpupool with Credit as its scheduler, either compile a cpupool configuration file, as described in <code>docs/man/xlcpupool.cfg.pod.5</code> (and as exemplified in <code>tools/examples/cpupool</code>), or use just <code>xl</code> directly:</p>
+<pre><code>xl cpupool-create name=\&quot;pool1\&quot; sched=\&quot;credit\&quot; cpus=[4,8]</code></pre>
+<p>Two kind of interactions with the scheduler are possible:</p>
+<ul>
+<li>checking or changing the global parameters, via, e.g.:
+<ul>
+<li><code>xl sched-credit -s</code></li>
+<li><code>xl sched-credit -s -p pool1</code></li>
+<li><code>xl sched-credit -s -t 20</code></li>
+</ul></li>
+<li>checking or changing a VM’s scheduling parameters, via, e.g.:
+<ul>
+<li><code>xl sched-credit -d vm1</code></li>
+<li><code>xl sched-credit -d vm1 -w 512</code></li>
+</ul></li>
+</ul>
+<h1 id="technical-details"><span class="header-section-number">4</span> Technical details</h1>
+<p>Implementation entirely lives in the hypervisor. Xen has a pluggable, hook based, architecture for schedulers. Thanks to this, Credit code is all contained in <code>xen/common/sched_credit.c</code>.</p>
+<h1 id="limitations"><span class="header-section-number">5</span> Limitations</h1>
+<p>In Credit, a vCPU has a priority, a status (i.e., active or inactive), a weight and some credits… and all these things interact in a rather involved way. Also, with years of use, things have gotten even more complex (due to, e.g., the introduction of boosting, caps and vCPU soft-affinity).</p>
+<p>Dealing with such complexity is starting to be an issue. Odd behavior or subtle scheduling anomalies, that is not always possible to act upon, have been identified already. [1][2][3]</p>
+<p>A certain lack of scalability and difficulties and weakness in dealing with mixed workloads and VMs with low latency requirements are other known problems. [4] For all these reasons, effort is ongoing to have Credit2 become the new default scheduler.</p>
+<h1 id="testing"><span class="header-section-number">6</span> Testing</h1>
+<p>Any change to Credit code must to be tested by doing at least the following:</p>
+<ul>
+<li>create a few virtual machine and verify that they boot and can run some basic workload (e.g., login into them and run simple commands),</li>
+<li>shutdown/reboot the virtual machines,</li>
+<li>shutdown the system.</li>
+</ul>
+<p>Ideally, all the above steps should <strong>also</strong> be performed in a configuration that includes cpupools, better if with pools using different schedulers, and by also doing the following:</p>
+<ul>
+<li>move the virtual machines between cpupools.</li>
+</ul>
+<h1 id="references"><span class="header-section-number">7</span> References</h1>
+<ul>
+<li><a href="https://lists.xenproject.org/archives/html/xen-devel/2014-07/msg01848.html">potential non-ideal behavior on hyperthreaded systems</a> [1]</li>
+<li><a href="https://lists.xen.org/archives/html/xen-devel/2015-10/msg02851.html">long standing BOOST vs. migration bug</a> [2]</li>
+<li><a href="https://lists.xenproject.org/archives/html/xen-devel/2016-05/msg01362.html">priority handling issues</a> [3]</li>
+<li>“Scheduler development update”, XenSummit Asia 2009 <a href="http://www-archive.xenproject.org/files/xensummit_intel09/George_Dunlap.pdf">whitepaper</a> [4]</li>
+<li>“Scheduling in Xen” <a href="http://events.linuxfoundation.org/sites/events/files/slides/Faggioli_XenSummit.pdf">XPDS15 Presentation</a></li>
+<li>“The Credit Scheduler” <a href="https://wiki.xenproject.org/wiki/Credit_Scheduler">on the Xen-Project wiki</a></li>
+<li>“Xen Project Schedulers” <a href="https://wiki.xenproject.org/wiki/Xen_Project_Schedulers">on the Xen-Project wiki</a></li>
+</ul>
+<h1 id="history"><span class="header-section-number">8</span> History</h1>
+<table>
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 60%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Date</th>
+<th>Revision</th>
+<th style="text-align: left;">Version</th>
+<th style="text-align: left;">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">2016-10-14</td>
+<td>1</td>
+<td style="text-align: left;">Xen 4.8</td>
+<td style="text-align: left;">Document written</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

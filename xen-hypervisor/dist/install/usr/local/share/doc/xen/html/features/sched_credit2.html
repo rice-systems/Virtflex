@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Revision 2" />
+  <title>Credit2 Scheduler</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+</head>
+<body>
+<header>
+<h1 class="title">Credit2 Scheduler</h1>
+<p class="author">Revision 2</p>
+</header>
+<nav id="TOC">
+<ul>
+<li><a href="#basics"><span class="toc-section-number">1</span> Basics</a></li>
+<li><a href="#overview"><span class="toc-section-number">2</span> Overview</a></li>
+<li><a href="#user-details"><span class="toc-section-number">3</span> User details</a></li>
+<li><a href="#technical-details"><span class="toc-section-number">4</span> Technical details</a></li>
+<li><a href="#testing"><span class="toc-section-number">5</span> Testing</a></li>
+<li><a href="#areas-for-improvement"><span class="toc-section-number">6</span> Areas for improvement</a></li>
+<li><a href="#known-issues"><span class="toc-section-number">7</span> Known issues</a></li>
+<li><a href="#references"><span class="toc-section-number">8</span> References</a></li>
+<li><a href="#history"><span class="toc-section-number">9</span> History</a></li>
+</ul>
+</nav>
+
+<h1 id="basics"><span class="header-section-number">1</span> Basics</h1>
+<table style="width:97%;">
+<colgroup>
+<col style="width: 23%" />
+<col style="width: 73%" />
+</colgroup>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">Status:</td>
+<td style="text-align: left;"><strong>Supported</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Component:</td>
+<td style="text-align: left;">Hypervisor</td>
+</tr>
+</tbody>
+</table>
+<h1 id="overview"><span class="header-section-number">2</span> Overview</h1>
+<p>Credit2 is one of the virtual CPU (vCPU) scheduler available in the Xen hypervisor.</p>
+<p>Credit2 was designed as a general purpose scheduler, with particular focus on improving handling of mixed workloads, scalability and support for low latency applications inside VMs, with respect to Credit1.</p>
+<h1 id="user-details"><span class="header-section-number">3</span> User details</h1>
+<p>Credit2 is not in use by default. In order to use it as the Xen scheduler the following parameter should be passed to the hypervisor at boot:</p>
+<pre><code>`sched=credit2`</code></pre>
+<p>Other parameters are available for tuning the behavior of Credit2 (see <code>docs/misc/xen-command-line.markdown</code> for a complete list and for their meaning).</p>
+<p>Once the system is live, for creating a cpupool with Credit2 as its scheduler, either compile a cpupool configuration file, as described in <code>docs/man/xlcpupool.cfg.pod.5</code> (and as exemplified in <code>tools/examples/cpupool</code>), or use just <code>xl</code> directly:</p>
+<pre><code>xl cpupool-create name=\&quot;pool1\&quot; sched=\&quot;credit2\&quot; cpus=[1,2]</code></pre>
+<p>Two kind of interactions with the scheduler are possible:</p>
+<ul>
+<li>checking or changing the global parameters, via, e.g.:
+<ul>
+<li><code>xl sched-credit2 -s</code></li>
+<li><code>xl sched-credit2 -s -p pool1</code></li>
+<li><code>xl sched-credit2 -s -r 100</code></li>
+</ul></li>
+<li>checking or changing a VM scheduling parameters, via, e.g.:
+<ul>
+<li><code>xl sched-credit2 -d vm1</code></li>
+<li><code>xl sched-credit2 -d vm1 -w 1024</code></li>
+</ul></li>
+</ul>
+<h1 id="technical-details"><span class="header-section-number">4</span> Technical details</h1>
+<p>Implementation entirely lives in the hypervisor. Xen has a pluggable, hook based, architecture for schedulers. Thanks to this, Credit2 code is all contained in <code>xen/common/sched_credit2.c</code>.</p>
+<p>Global scheduling parameters, such as context switching rate limiting, is only available from Xen 4.8 onward. In libxl, the <code>LIBXL\_HAVE\_SCHED\_CREDIT2\_PARAMS</code> symbol is introduced to indicate their availability.</p>
+<h1 id="testing"><span class="header-section-number">5</span> Testing</h1>
+<p>Any change done in Credit2 wants to be tested by doing at least the following:</p>
+<ul>
+<li>boot the system with <code>sched=credit2</code>,</li>
+<li>create a few virtual machine and verify that they boot and can run some basic workload (e.g., login into them and run simple commands),</li>
+<li>shutdown/reboot the virtual machines,</li>
+<li>shutdown/reboot the system.</li>
+</ul>
+<p>Ideally, all the above steps should <strong>also</strong> be performed in a configuration where Credit2 is used as the scheduler of a cpupool, and by also doing the following:</p>
+<ul>
+<li>move a virtual machine inside and outside a Credit2 cpupool.</li>
+</ul>
+<h1 id="areas-for-improvement"><span class="header-section-number">6</span> Areas for improvement</h1>
+<ul>
+<li>vCPUs’ reservations (similar to caps, but providing a vCPU with guarantees about some pCPU time it will always be able to execute for);</li>
+<li>benchmarking for assessing the best combination of values for the various parameters (<code>sched\_credit2\_migrate\_resist</code>, <code>credit2\_balance\_over</code>, <code>credit2\_balance\_under</code>)</li>
+</ul>
+<h1 id="known-issues"><span class="header-section-number">7</span> Known issues</h1>
+<ul>
+<li>I/O oriented benchmarks (like network and disk throughput) have given contradictory and non-conclusive results so far. Need to run more of those.</li>
+</ul>
+<h1 id="references"><span class="header-section-number">8</span> References</h1>
+<ul>
+<li>“Scheduler development update”, XenSummit Asia 2009 <a href="http://www-archive.xenproject.org/files/xensummit_intel09/George_Dunlap.pdf">whitepaper</a></li>
+<li>“Scheduling in Xen” <a href="http://events.linuxfoundation.org/sites/events/files/slides/Faggioli_XenSummit.pdf">XPDS15 Presentation</a></li>
+<li>“Scope and Performance of Credit-2 Scheduler” <a href="http://www.slideshare.net/xen_com_mgr/xpds16-scope-and-performance-of-credit2-scheduler-anshul-makkar-ctirix-systems-uk-ltd">XPDS16 Presentation</a></li>
+<li>“The Credit2 Scheduler” <a href="https://wiki.xenproject.org/wiki/Credit2_Scheduler_Development">on the Xen-Project wiki</a></li>
+<li>“Xen Project Schedulers” <a href="https://wiki.xenproject.org/wiki/Xen_Project_Schedulers">on the Xen-Project wiki</a></li>
+</ul>
+<h1 id="history"><span class="header-section-number">9</span> History</h1>
+<table>
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 60%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Date</th>
+<th>Revision</th>
+<th style="text-align: left;">Version</th>
+<th style="text-align: left;">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">2016-10-14 2017-11-6</td>
+<td>1 2</td>
+<td style="text-align: left;">Xen 4.8 Xen 4.10</td>
+<td style="text-align: left;">Document written Soft-affinity and caps implemented</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

@@ -1,0 +1,120 @@
+diff --git a/xen/arch/x86/mm.c b/xen/arch/x86/mm.c
+index 47364fc..99404db 100644
+--- a/xen/arch/x86/mm.c
++++ b/xen/arch/x86/mm.c
+@@ -2293,6 +2293,42 @@ void put_page(struct page_info *page)
+     }
+ }
+ 
++void put_page_with_order(struct page_info *page, unsigned int page_order)
++{
++
++    int i;
++    struct page_info* page_iter = page;
++    bool zero_ref_cnt = 1;
++    unsigned long nx, x, y = page->count_info;
++    
++    for (i = 0; i < (1UL << page_order); i++, page_iter++ ){
++	y = page_iter->count_info;
++        do {
++            ASSERT((y & PGC_count_mask) != 0);
++            x  = y;
++            nx = x - 1;
++        }
++        while ( unlikely((y = cmpxchg(&page_iter->count_info, x, nx)) != x) );
++        
++	if ( zero_ref_cnt && likely((nx & PGC_count_mask) != 0) ){
++		zero_ref_cnt = 0;
++	}
++    }
++
++    if ( zero_ref_cnt )
++    {
++	page_iter = page;    
++	for (i = 0; i < (1UL << page_order); i++, page_iter++ ){ 
++            if ( cleanup_page_cacheattr(page_iter) != 0 ){
++                gdprintk(XENLOG_WARNING,
++            	"Leaking mfn %" PRI_mfn "\n", mfn_x(page_to_mfn(page_iter)));
++	        break;
++	    }
++	}
++	free_domheap_pages(page, page_order);
++    }
++}
++
+ 
+ struct domain *page_get_owner_and_reference(struct page_info *page)
+ {
+diff --git a/xen/arch/x86/mm/p2m-ept.c b/xen/arch/x86/mm/p2m-ept.c
+index 14b5939..1d1f2f8 100644
+--- a/xen/arch/x86/mm/p2m-ept.c
++++ b/xen/arch/x86/mm/p2m-ept.c
+@@ -979,6 +979,8 @@ static mfn_t ept_get_entry(struct p2m_domain *p2m,
+             break;
+     }
+ 
++    printk("ept_get_entry is called, i:%d\n",i);
++
+     index = gfn_remainder >> (i * EPT_TABLE_ORDER);
+     ept_entry = table + index;
+ 
+diff --git a/xen/common/memory.c b/xen/common/memory.c
+index 7fc87ff..33234c0 100644
+--- a/xen/common/memory.c
++++ b/xen/common/memory.c
+@@ -625,13 +625,15 @@ int guest_remove_page(struct domain *d, unsigned long gmfn)
+     mfn_t mfn;
+     int rc;
+     unsigned long total_pages;
++    unsigned int page_order;
+ 
+     total_pages = d->tot_pages;
+ #ifdef CONFIG_X86
+ 	//printk("I'm here at guest_remove_page, p2m->defer_flush 1: %u\n", p2m_get_hostp2m((d))->defer_flush);
+ 
+     other_start_time_1 = rdtsc();
+-    mfn = get_gfn_query(d, gmfn, &p2mt);
++    mfn = get_gfn_query_with_order(d, gmfn, &p2mt, &page_order);
++    printk("In guest_remove_page, page_order from get_gfn_query: %u\n", page_order);
+     other_time_1 += rdtsc() - other_start_time_1;
+     
+     if ( unlikely(p2mt == p2m_invalid) || unlikely(p2mt == p2m_mmio_dm) )
+diff --git a/xen/include/asm-x86/p2m.h b/xen/include/asm-x86/p2m.h
+index d4b3cfc..89377f0 100644
+--- a/xen/include/asm-x86/p2m.h
++++ b/xen/include/asm-x86/p2m.h
+@@ -431,6 +431,13 @@ static inline mfn_t __nonnull(3) get_gfn_type(
+     p2m_access_t a;
+     return get_gfn_type_access(p2m_get_hostp2m(d), gfn, t, &a, q, NULL);
+ }
++static inline mfn_t __nonnull(3) get_gfn_type_with_order(
++    struct domain *d, unsigned long gfn, p2m_type_t *t, p2m_query_t q, 
++    unsigned int* page_order)
++{
++    p2m_access_t a;
++    return get_gfn_type_access(p2m_get_hostp2m(d), gfn, t, &a, q, page_order);
++}
+ 
+ /* Syntactic sugar: most callers will use one of these. 
+  * N.B. get_gfn_query() is the _only_ one guaranteed not to take the
+@@ -438,6 +445,8 @@ static inline mfn_t __nonnull(3) get_gfn_type(
+  * lock held. */
+ #define get_gfn(d, g, t)         get_gfn_type((d), (g), (t), P2M_ALLOC)
+ #define get_gfn_query(d, g, t)   get_gfn_type((d), (g), (t), 0)
++#define get_gfn_query_with_order(d, g, t, o) \
++      	get_gfn_type_with_order((d), (g), (t), 0, o)
+ #define get_gfn_unshare(d, g, t) get_gfn_type((d), (g), (t), \
+                                               P2M_ALLOC | P2M_UNSHARE)
+ 
+diff --git a/xen/include/xen/mm.h b/xen/include/xen/mm.h
+index e928551..3e4a269 100644
+--- a/xen/include/xen/mm.h
++++ b/xen/include/xen/mm.h
+@@ -146,6 +146,7 @@ TYPE_SAFE(unsigned long, pfn);
+ struct page_info;
+ 
+ void put_page(struct page_info *);
++void put_page_with_order(struct page_info *, unsigned int page_order);
+ int get_page(struct page_info *, struct domain *);
+ struct domain *__must_check page_get_owner_and_reference(struct page_info *);
+ 

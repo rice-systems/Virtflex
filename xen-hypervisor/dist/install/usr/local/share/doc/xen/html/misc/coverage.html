@@ -1,0 +1,132 @@
+<h1>Coverage support for Xen</h1>
+
+<p>Coverage support allows you to get coverage information from Xen execution.
+You can see how many times a line is executed.</p>
+
+<p>Some compilers have specific options that enable the collection of this
+information. Every basic block in the code will be instrumented by the compiler
+to compute these statistics. It should not be used in production as it slows
+down your hypervisor.</p>
+
+<h1>GCOV (GCC coverage)</h1>
+
+<h2>Enable coverage</h2>
+
+<p>Test coverage support can be turned on compiling Xen with the <code>CONFIG_COVERAGE</code>
+option set to <code>y</code>.</p>
+
+<p>Change your <code>.config</code> or run <code>make -C xen menuconfig</code>.</p>
+
+<h2>Extract coverage data</h2>
+
+<p>To extract data you use a simple utility called <code>xencov</code>.
+It allows you to do 2 operations:</p>
+
+<ul>
+<li><code>xencov read</code> extract data</li>
+<li><code>xencov reset</code> reset all coverage counters</li>
+</ul>
+
+<p>Another utility (<code>xencov_split</code>) is used to split extracted data file into
+files needed by userspace tools.</p>
+
+<h2>Split coverage data</h2>
+
+<p>Once you extracted data from Xen, it is time to create files which the coverage
+tools can understand. To do it you need to run <code>xencov_split</code> utility.</p>
+
+<p>The utility just takes an input file and splits the blob into gcc .gcda files
+in the same directory that you execute the script. As file names are generated
+relative to the current directory, it could be a good idea to run the script
+from <code>/</code> on your build machine.</p>
+
+<p>Code for splitting the blob is put in another utility for some reason:
+* It is simpler to maintain a high level script than a C program;
+* You don't need to execute on the Xen host so you just need to copy the file to
+  your development box (you usually need development files anyway).</p>
+
+<h2>Possible use</h2>
+
+<p><strong>This section is just an example on how to use these tools!</strong></p>
+
+<p>This example assumes you compiled Xen from <code>~/xen-unstable</code> and installed into
+the host. <strong>Consider that if you even recompile Xen you are not able to use
+blob extracted from xencov!</strong></p>
+
+<ul>
+<li>Ensure the <code>lcov</code> package is installed</li>
+<li><p>From the Xen host machine extract the coverage blob</p>
+
+<pre><code>cd /root
+xencov read coverage.dat
+</code></pre></li>
+<li><p>Copy the extracted blob to your dev machine</p>
+
+<pre><code>cd ~
+scp root@myhost:coverage.dat
+</code></pre></li>
+<li><p>Extract the coverage information</p>
+
+<pre><code>(cd / &amp;&amp; xencov_split ~/coverage.dat)
+</code></pre></li>
+<li><p>Produce coverage html output</p>
+
+<pre><code>cd ~/xen-unstable
+rm -rf cov.info cov
+geninfo -o cov.info xen
+mkdir cov
+genhtml -o cov cov.info
+</code></pre></li>
+<li><p>See output in a browser</p>
+
+<pre><code>firefox cov/index.html
+</code></pre></li>
+</ul>
+
+<h1>LLVM coverage</h1>
+
+<h2>Enable coverage</h2>
+
+<p>Coverage can be enabled using a Kconfig option, from the top-level directory
+use the following command to display the Kconfig menu:</p>
+
+<pre><code>make -C xen menuconfig clang=y
+</code></pre>
+
+<p>The code coverage option can be found inside of the "Debugging Options"
+section. After enabling it just compile Xen as you would normally do:</p>
+
+<pre><code>make xen clang=y
+</code></pre>
+
+<h2>Extract coverage data</h2>
+
+<p>LLVM coverage can be extracted from the hypervisor using the <code>xencov</code> tool.
+The following actions are available:</p>
+
+<ul>
+<li><code>xencov read</code> extract data</li>
+<li><code>xencov reset</code> reset all coverage counters</li>
+<li><code>xencov read-reset</code> extract data and reset counters at the same time.</li>
+</ul>
+
+<h2>Possible use</h2>
+
+<p><strong>This section is just an example on how to use these tools!</strong></p>
+
+<p>This example assumes you compiled Xen and copied the xen-syms file from
+xen/xen-syms into your current directory.</p>
+
+<ul>
+<li><p>Extract the coverage data from Xen:</p>
+
+<p>xencov read xen.profraw</p></li>
+<li><p>Convert the data into a profile. Note that you can merge more than one
+profraw file into a single profdata file.</p>
+
+<p>llvm-profdata merge xen.profraw -o xen.profdata</p></li>
+<li><p>Generate a HTML report of the code coverage:</p>
+
+<p>llvm-cov show -format=html -output-dir=cov/ xen-syms -instr-profile=xen.profdata</p></li>
+<li><p>Open cov/index.html with your browser in order to display the profile.</p></li>
+</ul>

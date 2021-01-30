@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Revision 1.8" />
+  <title>Intel Memory Bandwidth Allocation (MBA) Feature</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+</head>
+<body>
+<header>
+<h1 class="title">Intel Memory Bandwidth Allocation (MBA) Feature</h1>
+<p class="author">Revision 1.8</p>
+</header>
+<nav id="TOC">
+<ul>
+<li><a href="#basics"><span class="toc-section-number">1</span> Basics</a></li>
+<li><a href="#terminology"><span class="toc-section-number">2</span> Terminology</a></li>
+<li><a href="#overview"><span class="toc-section-number">3</span> Overview</a></li>
+<li><a href="#user-details"><span class="toc-section-number">4</span> User details</a></li>
+<li><a href="#technical-details"><span class="toc-section-number">5</span> Technical details</a><ul>
+<li><a href="#hardware-perspective"><span class="toc-section-number">5.1</span> Hardware perspective</a></li>
+<li><a href="#the-relationship-between-mba-and-catcdp"><span class="toc-section-number">5.2</span> The relationship between MBA and CAT/CDP</a></li>
+<li><a href="#design-overview"><span class="toc-section-number">5.3</span> Design Overview</a></li>
+<li><a href="#implementation-description"><span class="toc-section-number">5.4</span> Implementation Description</a></li>
+</ul></li>
+<li><a href="#limitations"><span class="toc-section-number">6</span> Limitations</a></li>
+<li><a href="#testing"><span class="toc-section-number">7</span> Testing</a></li>
+<li><a href="#areas-for-improvement"><span class="toc-section-number">8</span> Areas for improvement</a></li>
+<li><a href="#known-issues"><span class="toc-section-number">9</span> Known issues</a></li>
+<li><a href="#references"><span class="toc-section-number">10</span> References</a></li>
+<li><a href="#history"><span class="toc-section-number">11</span> History</a></li>
+</ul>
+</nav>
+
+<h1 id="basics"><span class="header-section-number">1</span> Basics</h1>
+<table style="width:97%;">
+<colgroup>
+<col style="width: 23%" />
+<col style="width: 73%" />
+</colgroup>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">Status:</td>
+<td style="text-align: left;"><strong>Tech Preview</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Architecture(s):</td>
+<td style="text-align: left;">Intel x86</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">Component(s):</td>
+<td style="text-align: left;">Hypervisor, toolstack</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Hardware:</td>
+<td style="text-align: left;">MBA is supported on Skylake Server and beyond</td>
+</tr>
+</tbody>
+</table>
+<h1 id="terminology"><span class="header-section-number">2</span> Terminology</h1>
+<ul>
+<li>CAT Cache Allocation Technology</li>
+<li>CBM Capacity BitMasks</li>
+<li>CDP Code and Data Prioritization</li>
+<li>COS/CLOS Class of Service</li>
+<li>HW Hardware</li>
+<li>MBA Memory Bandwidth Allocation</li>
+<li>MSRs Machine Specific Registers</li>
+<li>PSR Intel Platform Shared Resource</li>
+<li>THRTL Throttle value or delay value</li>
+</ul>
+<h1 id="overview"><span class="header-section-number">3</span> Overview</h1>
+<p>The Memory Bandwidth Allocation (MBA) feature provides indirect and approximate control over memory bandwidth available per-core. This feature provides OS/ hypervisor the ability to slow misbehaving apps/domains by using a credit-based throttling mechanism.</p>
+<h1 id="user-details"><span class="header-section-number">4</span> User details</h1>
+<ul>
+<li><p>Feature Enabling:</p>
+<p>Add “psr=mba” to boot line parameter to enable MBA feature.</p></li>
+<li><p>xl interfaces:</p>
+<ol type="1">
+<li><p><code>psr-mba-show [domain-id|domain-name]</code>:</p>
+<p>Show memory bandwidth throttling for domain. Under different modes, it shows different type of data.</p>
+<p>There are two modes: Linear mode: the input precision is defined as 100-(MBA_MAX). For instance, if the MBA_MAX value is 90, the input precision is 10%. Values not an even multiple of the precision (e.g., 12%) will be rounded down (e.g., to 10% delay applied) by HW automatically. The response of throttling value is linear.</p>
+<p>Non-linear mode: input delay values are powers-of-two from zero to the MBA_MAX value from CPUID. In this case any values not a power of two will be rounded down the next nearest power of two by HW automatically. The response of throttling value is non-linear.</p>
+<p>For linear mode, it shows the decimal value. For non-linear mode, it shows hexadecimal value.</p></li>
+<li><p><code>psr-mba-set [OPTIONS] &lt;domain-id|domain-name&gt; &lt;throttling&gt;</code>:</p>
+<p>Set memory bandwidth throttling for domain.</p>
+<p>Options: ‘-s’: Specify the socket to process, otherwise all sockets are processed.</p>
+<p>Throttling value set in register implies the approximate amount of delaying the traffic between core and memory. Higher throttling value result in lower bandwidth. The max throttling value (MBA_MAX) supported can be obtained through CPUID inside hypervisor. Users can fetch the MBA_MAX value using the <code>psr-hwinfo</code> xl command.</p></li>
+</ol></li>
+</ul>
+<h1 id="technical-details"><span class="header-section-number">5</span> Technical details</h1>
+<p>MBA is a member of Intel PSR features, it shares the base PSR infrastructure in Xen.</p>
+<h2 id="hardware-perspective"><span class="header-section-number">5.1</span> Hardware perspective</h2>
+<p>MBA defines a range of MSRs to support specifying a delay value (Thrtl) per COS, with details below.</p>
+<pre><code> +----------------------------+----------------+
+ | MSR (per socket)           |    Address     |
+ +----------------------------+----------------+
+ | IA32_L2_QOS_Ext_BW_Thrtl_0 |     0xD50      |
+ +----------------------------+----------------+
+ | ...                        |  ...           |
+ +----------------------------+----------------+
+ | IA32_L2_QOS_Ext_BW_Thrtl_n |     0xD50+n    |
+ +----------------------------+----------------+</code></pre>
+<p>When context switch happens, the COS ID of domain is written to per-hyper- thread MSR <code>IA32_PQR_ASSOC</code>, and then hardware enforces bandwidth allocation according to the throttling value stored in the Thrtl MSR register.</p>
+<h2 id="the-relationship-between-mba-and-catcdp"><span class="header-section-number">5.2</span> The relationship between MBA and CAT/CDP</h2>
+<p>Generally speaking, MBA is completely independent of CAT/CDP, and any combination may be applied at any time, e.g. enabling MBA with CAT disabled.</p>
+<p>But it needs to be noticed that MBA shares COS infrastructure with CAT, although MBA is enumerated by different CPUID leaf from CAT (which indicates that the max COS of MBA may be different from CAT). In some cases, a domain is permitted to have a COS that is beyond one (or more) of PSR features but within the others. For instance, let’s assume the max COS of MBA is 8 but the max COS of L3 CAT is 16, when a domain is assigned 9 as COS, the L3 CAT CBM associated to COS 9 would be enforced, but for MBA, the HW works as default value is set since COS 9 is beyond the max COS (8) of MBA.</p>
+<h2 id="design-overview"><span class="header-section-number">5.3</span> Design Overview</h2>
+<ul>
+<li><p>Core COS/Thrtl association</p>
+<p>When enforcing Memory Bandwidth Allocation, all cores of domains have the same default Thrtl MSR (COS0) which stores the same Thrtl (0). The default Thrtl MSR is used only in hypervisor and is transparent to tool stack and user.</p>
+<p>System administrators can change PSR allocation policy at runtime by using the tool stack. Since MBA shares COS ID with CAT/CDP, a COS ID corresponds to a 2-tuple, like [CBM, Thrtl] with only-CAT enabled, when CDP is enabled, the COS ID corresponds to a 3-tuple, like [Code_CBM, Data_CBM, Thrtl]. If neither CAT nor CDP is enabled, things are easier, since one COS ID corresponds to one Thrtl.</p></li>
+<li><p>VCPU schedule</p>
+<p>This part reuses CAT COS infrastructure.</p></li>
+<li><p>Multi-sockets</p>
+<p>Different sockets may have different MBA capabilities (like max COS) although it is consistent on the same socket. So the capability of per-socket MBA is specified.</p>
+<p>This part reuses CAT COS infrastructure.</p></li>
+</ul>
+<h2 id="implementation-description"><span class="header-section-number">5.4</span> Implementation Description</h2>
+<ul>
+<li><p>Hypervisor interfaces:</p>
+<ol type="1">
+<li><p>Boot line param: “psr=mba” to enable the feature.</p></li>
+<li><p>SYSCTL: - XEN_SYSCTL_PSR_MBA_get_info: Get system MBA information.</p></li>
+<li><p>DOMCTL: - XEN_DOMCTL_PSR_MBA_OP_GET_THRTL: Get throttling for a domain. - XEN_DOMCTL_PSR_MBA_OP_SET_THRTL: Set throttling for a domain.</p></li>
+</ol></li>
+<li><p>xl interfaces:</p>
+<ol type="1">
+<li><p>psr-mba-show [domain-id] Show system/domain runtime MBA throttling value. For linear mode, it shows the decimal value. For non-linear mode, it shows hexadecimal value. =&gt; XEN_SYSCTL_PSR_MBA_get_info/XEN_DOMCTL_PSR_MBA_OP_GET_THRTL</p></li>
+<li><p>psr-mba-set [OPTIONS] <domain-id> <throttling> Set bandwidth throttling for a domain. =&gt; XEN_DOMCTL_PSR_MBA_OP_SET_THRTL</p></li>
+<li><p>psr-hwinfo Show PSR HW information, including L3 CAT/CDP/L2 CAT/MBA. =&gt; XEN_SYSCTL_PSR_MBA_get_info</p></li>
+</ol></li>
+<li><p>Key data structure:</p>
+<ol type="1">
+<li><p>Feature HW info</p>
+<p>``` struct { unsigned int thrtl_max; bool linear; } mba;</p>
+<ul>
+<li><p>Member <code>thrtl_max</code></p>
+<p><code>thrtl_max</code> is the max throttling value to be set, i.e. MBA_MAX.</p></li>
+<li><p>Member <code>linear</code></p>
+<p><code>linear</code> means the response of delay value is linear or not.</p></li>
+</ul>
+<p>As mentioned above, MBA is a member of Intel PSR features, it shares the base PSR infrastructure in Xen. For example, the ‘cos_max’ is a common HW property for all features. So, for other data structure details, please refer to ‘intel_psr_cat_cdp.pandoc’.</p></li>
+</ol></li>
+</ul>
+<h1 id="limitations"><span class="header-section-number">6</span> Limitations</h1>
+<p>MBA can only work on HW which supports it (check CPUID).</p>
+<h1 id="testing"><span class="header-section-number">7</span> Testing</h1>
+<p>We can execute these commands to verify MBA on different HWs supporting them.</p>
+<p>For example: 1. User can get the MBA hardware info through ‘psr-hwinfo’ command. From result, user can know if this hardware works under linear mode or non- linear mode, the max throttling value (MBA_MAX) and so on.</p>
+<pre><code>root@:~$ xl psr-hwinfo --mba
+Memory Bandwidth Allocation (MBA):
+Socket ID       : 0
+Linear Mode     : Enabled
+Maximum COS     : 7
+Maximum Throttling Value: 90
+Default Throttling Value: 0</code></pre>
+<ol start="2" type="1">
+<li>Then, user can set a throttling value to a domain. For example, set ‘10’, i.e 10% delay.</li>
+</ol>
+<pre><code>root@:~$ xl psr-mba-set 1 10</code></pre>
+<ol start="3" type="1">
+<li>User can check the current configuration of the domain through ‘psr-mab-show’. For linear mode, the decimal value is shown.</li>
+</ol>
+<pre><code>root@:~$ xl psr-mba-show 1
+Socket ID       : 0
+Default THRTL   : 0
+   ID                     NAME            THRTL
+    1                 ubuntu14             10</code></pre>
+<h1 id="areas-for-improvement"><span class="header-section-number">8</span> Areas for improvement</h1>
+<p>N/A</p>
+<h1 id="known-issues"><span class="header-section-number">9</span> Known issues</h1>
+<p>N/A</p>
+<h1 id="references"><span class="header-section-number">10</span> References</h1>
+<p>“INTEL RESOURCE DIRECTOR TECHNOLOGY (INTEL RDT) ALLOCATION FEATURES” <a href="http://www.intel.com/content/www/us/en/processors/architectures-software-developer-manuals.html">Intel 64 and IA-32 Architectures Software Developer Manuals, vol3</a></p>
+<h1 id="history"><span class="header-section-number">11</span> History</h1>
+<table>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Date Revision Version Notes</td>
+</tr>
+</tbody>
+</table>
+<p>2017-01-10 1.0 Xen 4.9 Design document written 2017-07-10 1.1 Xen 4.10 Changes: 1. Modify data structure according to latest codes; 2. Add content for ‘Areas for improvement’; 3. Other minor changes. 2017-08-09 1.2 Xen 4.10 Changes: 1. Remove a special character to avoid error when building pandoc. 2017-08-15 1.3 Xen 4.10 Changes: 1. Add terminology ‘HW’. 2. Change ‘COS ID of VCPU’ to ‘COS ID of domain’. 3. Change ‘COS register’ to ‘Thrtl MSR’. 4. Explain the value shown for ‘psr-mba-show’ under different modes. 5. Remove content in ‘Areas for improvement’. 2017-08-16 1.4 Xen 4.10 Changes: 1. Add ‘&lt;&gt;’ for mandatory argument. 2017-08-30 1.5 Xen 4.10 Changes: 1. Modify words in ‘Overview’ to make it easier to understand. 2. Explain ‘linear/non-linear’ modes before mention them. 3. Explain throttling value more accurate. 4. Explain ‘MBA_MAX’. 5. Correct some words in ‘Design Overview’. 6. Change ‘mba_info’ to ‘mba’ according to code changes. Also, modify contents of it. 7. Add context in ‘Testing’ part to make things more clear. 8. Remove ‘n&lt;64’ to avoid out-of-sync. 2017-09-21 1.6 Xen 4.10 Changes: 1. Add ‘domain-name’ as parameter of ‘psr-mba-show/ psr-mba-set’. 2. Fix some wordings. 3. Explain how user can know the MBA_MAX. 4. Move the description of ‘Linear mode/Non-linear mode’ into section of ‘psr-mba-show’. 5. Change ‘per-thread’ to ‘per-hyper-thread’. 2017-09-29 1.7 Xen 4.10 Changes: 1. Correct some words. 2. Change ‘xl psr-mba-set 1 0xa’ to ‘xl psr-mba-set 1 10’ 2017-10-08 1.8 Xen 4.10 Changes: 1. Correct some words. ———- ——– ——– ——————————————-</p>
+</body>
+</html>

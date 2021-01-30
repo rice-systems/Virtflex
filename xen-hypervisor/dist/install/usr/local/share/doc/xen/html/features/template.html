@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Revision $N" />
+  <title>Template for feature documents</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+</head>
+<body>
+<header>
+<h1 class="title">Template for feature documents</h1>
+<p class="author">Revision $N</p>
+</header>
+<nav id="TOC">
+<ul>
+<li><a href="#basics"><span class="toc-section-number">1</span> Basics</a></li>
+<li><a href="#overview"><span class="toc-section-number">2</span> Overview</a></li>
+<li><a href="#user-details"><span class="toc-section-number">3</span> User details</a></li>
+<li><a href="#technical-details"><span class="toc-section-number">4</span> Technical details</a></li>
+<li><a href="#limitations"><span class="toc-section-number">5</span> Limitations</a></li>
+<li><a href="#testing"><span class="toc-section-number">6</span> Testing</a></li>
+<li><a href="#areas-for-improvement"><span class="toc-section-number">7</span> Areas for improvement</a></li>
+<li><a href="#known-issues"><span class="toc-section-number">8</span> Known issues</a></li>
+<li><a href="#references"><span class="toc-section-number">9</span> References</a></li>
+<li><a href="#history"><span class="toc-section-number">10</span> History</a></li>
+</ul>
+</nav>
+
+<p>This is a suggested template for formatting of a Xen feature document in tree.</p>
+<p>The purpose of this document is to provide a concrete support statement for the feature (indicating its security status), as well as brief user and technical documentation.</p>
+<h1 id="basics"><span class="header-section-number">1</span> Basics</h1>
+<p>A table with an overview of the support status and applicability.</p>
+<table style="width:97%;">
+<colgroup>
+<col style="width: 23%" />
+<col style="width: 73%" />
+</colgroup>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">Status:</td>
+<td>e.g. <strong>Supported</strong>/<strong>Tech Preview</strong>/<strong>Experimental</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Architecture(s):</td>
+<td>e.g. x86, arm</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">Component(s):</td>
+<td>e.g. Hypervisor, toolstack, guest</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Hardware:</td>
+<td><em>where applicable</em></td>
+</tr>
+</tbody>
+</table>
+<h1 id="overview"><span class="header-section-number">2</span> Overview</h1>
+<p>A short description the feature, similar to an abstract for a paper/presentation.</p>
+<h1 id="user-details"><span class="header-section-number">3</span> User details</h1>
+<p>Information for a user attempting to use the feature. Should include how to enable the feature (is it enabled by default? If not, how to turn it on?), and how to interact with the feature (typically via <code>xl</code>).</p>
+<h1 id="technical-details"><span class="header-section-number">4</span> Technical details</h1>
+<p>Information for a developer or power user. Should include where to look in-tree for detailed documents and code.</p>
+<h1 id="limitations"><span class="header-section-number">5</span> Limitations</h1>
+<p>Information concerning incompatibilities with other features or hardware combinations.</p>
+<h1 id="testing"><span class="header-section-number">6</span> Testing</h1>
+<p>Information concerning how to properly test changes affecting this feature.</p>
+<h1 id="areas-for-improvement"><span class="header-section-number">7</span> Areas for improvement</h1>
+<p>List of enhancements which could be undertaken, e.g. to improve the feature itself, or improve interaction with other features.</p>
+<h1 id="known-issues"><span class="header-section-number">8</span> Known issues</h1>
+<p>List of known issues or bugs. For tech preview or experimental features, this section must contain the list of items needing fixing for its status to be upgraded.</p>
+<h1 id="references"><span class="header-section-number">9</span> References</h1>
+<p>Relevant external references for this feature.</p>
+<h1 id="history"><span class="header-section-number">10</span> History</h1>
+<p>A table of changes to the document, in chronological order.</p>
+<table>
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 60%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Date</th>
+<th>Revision</th>
+<th style="text-align: left;">Version</th>
+<th style="text-align: left;">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">YYYY-MM-DD</td>
+<td>N</td>
+<td style="text-align: left;">Xen X.Y</td>
+<td style="text-align: left;">…</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

@@ -1,0 +1,57 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/******************************************************************************
+ * Xen balloon functionality
+ */
+
+#include <linux/wait.h> // added for next_touch_waitq 
+
+
+#define RETRY_UNLIMITED	0
+
+//extern wait_queue_head_t next_touch_waitq;
+//extern int next_touch_waitc; 
+
+struct balloon_stats {
+	/* We aim for 'current allocation' == 'target allocation'. */
+	unsigned long current_pages;
+	unsigned long target_pages;
+	unsigned long target_unpopulated;
+	/* Number of pages in high- and low-memory balloons. */
+	unsigned long balloon_low;
+	unsigned long balloon_high;
+	unsigned long total_pages;
+	unsigned long schedule_delay;
+	unsigned long max_schedule_delay;
+	unsigned long retry_count;
+	unsigned long max_retry_count;
+};
+
+extern struct balloon_stats balloon_stats;
+
+void balloon_set_new_target(unsigned long target, int node);
+
+int alloc_xenballooned_pages(int nr_pages, struct page **pages);
+void free_xenballooned_pages(int nr_pages, struct page **pages);
+
+struct device;
+#ifdef CONFIG_XEN_SELFBALLOONING
+extern int register_xen_selfballooning(struct device *dev);
+#else
+static inline int register_xen_selfballooning(struct device *dev)
+{
+	return -ENOSYS;
+}
+#endif
+
+#ifdef CONFIG_XEN_BALLOON
+void xen_balloon_init(void);
+#else
+static inline void xen_balloon_init(void)
+{
+}
+#endif
+
+#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
+struct resource;
+void arch_xen_balloon_init(struct resource *hostmem_resource);
+#endif

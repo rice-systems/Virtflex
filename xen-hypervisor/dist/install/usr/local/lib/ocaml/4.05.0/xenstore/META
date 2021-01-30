@@ -1,0 +1,5 @@
+version = "4.1"
+description = "XenStore Interface"
+requires = "unix,xenbus"
+archive(byte) = "xenstore.cma"
+archive(native) = "xenstore.cmxa"

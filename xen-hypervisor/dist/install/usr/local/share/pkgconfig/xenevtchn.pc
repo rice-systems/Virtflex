@@ -1,0 +1,10 @@
+prefix=/usr/local
+includedir=/usr/local/include
+libdir=/usr/local/lib
+
+Name: Xenevtchn
+Description: The Xenevtchn library for Xen hypervisor
+Version: 1.1
+Cflags: -I${includedir}
+Libs: -L${libdir} -lxenevtchn
+Requires.private: xentoollog

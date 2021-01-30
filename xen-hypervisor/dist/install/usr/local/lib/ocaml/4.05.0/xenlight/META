@@ -1,0 +1,5 @@
+version = "4.1"
+description = "Xen Toolstack Library"
+requires = "xentoollog"
+archive(byte) = "xenlight.cma"
+archive(native) = "xenlight.cmxa"

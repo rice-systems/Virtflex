@@ -1,0 +1,10 @@
+prefix=/usr/local
+includedir=/usr/local/include
+libdir=/usr/local/lib
+
+Name: Xenforeignmemory
+Description: The Xenforeignmemory library for Xen hypervisor
+Version: 1.3
+Cflags: -I${includedir} 
+Libs: -L${libdir} -lxenforeignmemory
+Requires.private: xentoollog,xentoolcore

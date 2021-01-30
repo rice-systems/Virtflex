@@ -1,0 +1,1 @@
+/home/runhua/linux_kernel_numa/scripts/gdb/vmlinux-gdb.py

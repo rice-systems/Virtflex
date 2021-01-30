@@ -1,0 +1,2711 @@
+<h1>Xen Hypervisor Command Line Options</h1>
+
+<p>This document covers the command line options which the Xen
+Hypervisor.</p>
+
+<h2>Types of parameter</h2>
+
+<p>Most parameters take the form <code>option=value</code>.  Different options on
+the command line should be space delimited.  All options are case
+sensitive, as are all values unless explicitly noted.</p>
+
+<h3>Boolean (<code>&lt;boolean&gt;</code>)</h3>
+
+<p>All boolean option may be explicitly enabled using a <code>value</code> of</p>
+
+<blockquote>
+  <p><code>yes</code>, <code>on</code>, <code>true</code>, <code>enable</code> or <code>1</code></p>
+</blockquote>
+
+<p>They may be explicitly disabled using a <code>value</code> of</p>
+
+<blockquote>
+  <p><code>no</code>, <code>off</code>, <code>false</code>, <code>disable</code> or <code>0</code></p>
+</blockquote>
+
+<p>In addition, a boolean option may be enabled by simply stating its
+name, and may be disabled by prefixing its name with <code>no-</code>.</p>
+
+<h4>Examples</h4>
+
+<p>Enable noreboot mode</p>
+
+<blockquote>
+  <p><code>noreboot=true</code></p>
+</blockquote>
+
+<p>Disable x2apic support (if present)</p>
+
+<blockquote>
+  <p><code>x2apic=off</code></p>
+</blockquote>
+
+<p>Enable synchronous console mode</p>
+
+<blockquote>
+  <p><code>sync_console</code></p>
+</blockquote>
+
+<p>Explicitly specifying any value other than those listed above is
+undefined, as is stacking a <code>no-</code> prefix with an explicit value.</p>
+
+<h3>Integer (<code>&lt;integer&gt;</code>)</h3>
+
+<p>An integer parameter will default to decimal and may be prefixed with
+a <code>-</code> for negative numbers.  Alternatively, a hexadecimal number may be
+used by prefixing the number with <code>0x</code>, or an octal number may be used
+if a leading <code>0</code> is present.</p>
+
+<p>Providing a string which does not validly convert to an integer is
+undefined.</p>
+
+<h3>Size (<code>&lt;size&gt;</code>)</h3>
+
+<p>A size parameter may be any integer, with a single size suffix</p>
+
+<ul>
+<li><code>T</code> or <code>t</code>: TiB (2^40)</li>
+<li><code>G</code> or <code>g</code>: GiB (2^30)</li>
+<li><code>M</code> or <code>m</code>: MiB (2^20)</li>
+<li><code>K</code> or <code>k</code>: KiB (2^10)</li>
+<li><code>B</code> or <code>b</code>: Bytes</li>
+</ul>
+
+<p>Without a size suffix, the default will be kilo.  Providing a suffix
+other than those listed above is undefined.</p>
+
+<h3>String</h3>
+
+<p>Many parameters are more complicated and require more intricate
+configuration.  The detailed description of each individual parameter
+specify which values are valid.</p>
+
+<h3>List</h3>
+
+<p>Some options take a comma separated list of values.</p>
+
+<h3>Combination</h3>
+
+<p>Some parameters act as combinations of the above, most commonly a mix
+of Boolean and String.  These are noted in the relevant sections.</p>
+
+<h2>Parameter details</h2>
+
+<h3>acpi</h3>
+
+<blockquote>
+  <p><code>= force | ht | noirq | &lt;boolean&gt;</code></p>
+</blockquote>
+
+<p><strong>String</strong>, or <strong>Boolean</strong> to disable.</p>
+
+<p>The <strong>acpi</strong> option is used to control a set of four related boolean
+flags; <code>acpi_force</code>, <code>acpi_ht</code>, <code>acpi_noirq</code> and <code>acpi_disabled</code>.</p>
+
+<p>By default, Xen will scan the DMI data and blacklist certain systems
+which are known to have broken ACPI setups.  Providing <code>acpi=force</code>
+will cause Xen to ignore the blacklist and attempt to use all ACPI
+features.</p>
+
+<p>Using <code>acpi=ht</code> causes Xen to parse the ACPI tables enough to
+enumerate all CPUs, but will not use other ACPI features.  This is not
+common, and only has an effect if your system is blacklisted.</p>
+
+<p>The <code>acpi=noirq</code> option causes Xen to not parse the ACPI MADT table
+looking for IO-APIC entries.  This is also not common, and any system
+which requires this option to function should be blacklisted.
+Additionally, this will not prevent Xen from finding IO-APIC entries
+from the MP tables.</p>
+
+<p>Finally, any of the boolean false options can be used to disable ACPI
+usage entirely.</p>
+
+<p>Because responsibility for ACPI processing is shared between Xen and
+the domain 0 kernel this option is automatically propagated to the
+domain 0 command line</p>
+
+<h3>acpi_apic_instance</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<p>Specify which ACPI MADT table to parse for APIC information, if more
+than one is present.</p>
+
+<h3>acpi_pstate_strict (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Enforce checking that P-state transitions by the ACPI cpufreq driver
+actually result in the nominated frequency to be established. A warning
+message will be logged if that isn't the case.</p>
+
+<h3>acpi_skip_timer_override (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<p>Instruct Xen to ignore timer-interrupt override.</p>
+
+<h3>acpi_sleep (x86)</h3>
+
+<blockquote>
+  <p><code>= s3_bios | s3_mode</code></p>
+</blockquote>
+
+<p><code>s3_bios</code> instructs Xen to invoke video BIOS initialization during S3
+resume.</p>
+
+<p><code>s3_mode</code> instructs Xen to set up the boot time (option <code>vga=</code>) video
+mode during S3 resume.</p>
+
+<h3>allow_unsafe (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Force boot on potentially unsafe systems. By default Xen will refuse
+to boot on systems with the following errata:</p>
+
+<ul>
+<li>AMD Erratum 121. Processors with this erratum are subject to a guest
+triggerable Denial of Service. Override only if you trust all of
+your PV guests.</li>
+</ul>
+
+<h3>altp2m (Intel)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Permit multiple copies of host p2m.</p>
+
+<h3>apic (x86)</h3>
+
+<blockquote>
+  <p><code>= bigsmp | default</code></p>
+</blockquote>
+
+<p>Override Xen's logic for choosing the APIC driver.  By default, if
+there are more than 8 CPUs, Xen will switch to <code>bigsmp</code> over
+<code>default</code>.</p>
+
+<h3>apicv (Intel)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Permit Xen to use APIC Virtualisation Extensions.  This is an optimisation
+available as part of VT-x, and allows hardware to take care of the guests APIC
+handling, rather than requiring emulation in Xen.</p>
+
+<h3>apic_verbosity (x86)</h3>
+
+<blockquote>
+  <p><code>= verbose | debug</code></p>
+</blockquote>
+
+<p>Increase the verbosity of the APIC code from the default value.</p>
+
+<h3>arat (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Permit Xen to use "Always Running APIC Timer" support on compatible hardware
+in combination with cpuidle.  This option is only expected to be useful for
+developers wishing Xen to fall back to older timing methods on newer hardware.</p>
+
+<h3>asid (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Permit Xen to use Address Space Identifiers.  This is an optimisation which
+tags the TLB entries with an ID per vcpu.  This allows for guest TLB flushes
+to be performed without the overhead of a complete TLB flush.</p>
+
+<h3>async-show-all (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Forces all CPUs' full state to be logged upon certain fatal asynchronous
+exceptions (watchdog NMIs and unexpected MCEs).</p>
+
+<h3>ats (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Permits Xen to set up and use PCI Address Translation Services.  This is a
+performance optimisation for PCI Passthrough.</p>
+
+<p><strong>WARNING: Xen cannot currently safely use ATS because of its synchronous wait
+loops for Queued Invalidation completions.</strong></p>
+
+<h3>availmem</h3>
+
+<blockquote>
+  <p><code>= &lt;size&gt;</code></p>
+
+<p>Default: <code>0</code> (no limit)</p>
+</blockquote>
+
+<p>Specify a maximum amount of available memory, to which Xen will clamp
+the e820 table.</p>
+
+<h3>badpage</h3>
+
+<blockquote>
+  <p><code>= List of [ &lt;integer&gt; | &lt;integer&gt;-&lt;integer&gt; ]</code></p>
+</blockquote>
+
+<p>Specify that certain pages, or certain ranges of pages contain bad
+bytes and should not be used.  For example, if your memory tester says
+that byte <code>0x12345678</code> is bad, you would place <code>badpage=0x12345</code> on
+Xen's command line.</p>
+
+<h3>bootscrub</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Scrub free RAM during boot.  This is a safety feature to prevent
+accidentally leaking sensitive VM data into other VMs if Xen crashes
+and reboots.</p>
+
+<h3>bootscrub_chunk</h3>
+
+<blockquote>
+  <p><code>= &lt;size&gt;</code></p>
+
+<p>Default: <code>128M</code></p>
+</blockquote>
+
+<p>Maximum RAM block size chunks to be scrubbed whilst holding the page heap lock
+and not running softirqs. Reduce this if softirqs are not being run frequently
+enough. Setting this to a high value may cause boot failure, particularly if
+the NMI watchdog is also enabled.</p>
+
+<h3>bti (x86)</h3>
+
+<blockquote>
+  <p><code>= List of [ &lt;bool&gt;, thunk=retpoline|lfence|jmp, ibrs=&lt;bool&gt;, ibpb=&lt;bool&gt;, rsb=&lt;bool&gt;, rsb_{vmexit,native}=&lt;bool&gt; ]</code></p>
+</blockquote>
+
+<p><strong>WARNING: This command line option is deprecated, and superseded by
+<em>spec-ctrl=</em> - using both options in combination is undefined.</strong></p>
+
+<p>Branch Target Injection controls.  By default, Xen will pick the most
+appropriate BTI mitigations based on compiled in support, loaded microcode,
+and hardware details.</p>
+
+<p><strong>WARNING: Any use of this option may interfere with heuristics.  Use with
+extreme care.</strong></p>
+
+<p>A (negative) boolean value can be specified to turn off all mitigations.
+(Use of a positive boolean value is invalid.)</p>
+
+<p>If Xen was compiled with INDIRECT_THUNK support, <code>thunk=</code> can be used to
+select which of the thunks gets patched into the <code>__x86_indirect_thunk_%reg</code>
+locations.  The default thunk is <code>retpoline</code> (generally preferred for Intel
+hardware), with the alternatives being <code>jmp</code> (a <code>jmp *%reg</code> gadget, minimal
+overhead), and <code>lfence</code> (an <code>lfence; jmp *%reg</code> gadget, preferred for AMD).</p>
+
+<p>On hardware supporting IBRS, the <code>ibrs=</code> option can be used to force or
+prevent Xen using the feature itself.  If Xen is not using IBRS itself,
+functionality is still set up so IBRS can be virtualised for guests.</p>
+
+<p>On hardware supporting IBPB, the <code>ibpb=</code> option can be used to prevent Xen
+from issuing Branch Prediction Barriers on vcpu context switches.</p>
+
+<p>The <code>rsb=</code>, <code>rsb_vmexit=</code> and <code>rsb_native=</code> options can be used to control
+when the RSB gets overwritten.  The former control all RSB overwriting, while
+the latter two can be used to fine tune overwriting on from HVM context, and
+an entry from a native (PV or Xen) context.</p>
+
+<h3>clocksource (x86)</h3>
+
+<blockquote>
+  <p><code>= pit | hpet | acpi | tsc</code></p>
+</blockquote>
+
+<p>If set, override Xen's default choice for the platform timer.
+Having TSC as platform timer requires being explicitly set. This is because
+TSC can only be safely used if CPU hotplug isn't performed on the system. On
+some platforms, the "maxcpus" option may need to be used to further adjust
+the number of allowed CPUs.  When running on platforms that can guarantee a
+monotonic TSC across sockets you may want to adjust the "tsc" command line
+parameter to "stable:socket".</p>
+
+<h3>cmci-threshold (Intel)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+
+<p>Default: <code>2</code></p>
+</blockquote>
+
+<p>Specify the event count threshold for raising Corrected Machine Check
+Interrupts.  Specifying zero disables CMCI handling.</p>
+
+<h3>cmos-rtc-probe (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Flag to indicate whether to probe for a CMOS Real Time Clock irrespective of
+ACPI indicating none to be there.</p>
+
+<h3>com1,com2</h3>
+
+<blockquote>
+  <p><code>= &lt;baud&gt;[/&lt;base-baud&gt;][,[DPS][,[&lt;io-base&gt;|pci|amt][,[&lt;irq&gt;][,[&lt;port-bdf&gt;][,[&lt;bridge-bdf&gt;]]]]]]</code></p>
+</blockquote>
+
+<p>Both option <code>com1</code> and <code>com2</code> follow the same format.</p>
+
+<ul>
+<li><code>&lt;baud&gt;</code> may be either an integer baud rate, or the string <code>auto</code> if
+the bootloader or other earlier firmware has already set it up.</li>
+<li>Optionally, the base baud rate (usually the highest baud rate the
+device can communicate at) can be specified.</li>
+<li><code>DPS</code> represents the number of data bits, the parity, and the number
+of stop bits.
+<ul>
+<li><code>D</code> is an integer between 5 and 8 for the number of data bits.</li>
+<li><code>P</code> is a single character representing the type of parity:
+<ul>
+<li><code>n</code> No</li>
+<li><code>o</code> Odd</li>
+<li><code>e</code> Even</li>
+<li><code>m</code> Mark</li>
+<li><code>s</code> Space</li>
+</ul></li>
+<li><code>S</code> is an integer 1 or 2 for the number of stop bits.</li>
+</ul></li>
+<li><code>&lt;io-base&gt;</code> is an integer which specifies the IO base port for UART
+registers.</li>
+<li><code>&lt;irq&gt;</code> is the IRQ number to use, or <code>0</code> to use the UART in poll
+mode only.</li>
+<li><code>&lt;port-bdf&gt;</code> is the PCI location of the UART, in
+<code>&lt;bus&gt;:&lt;device&gt;.&lt;function&gt;</code> notation.</li>
+<li><code>&lt;bridge-bdf&gt;</code> is the PCI bridge behind which is the UART, in
+<code>&lt;bus&gt;:&lt;device&gt;.&lt;function&gt;</code> notation.</li>
+<li><code>pci</code> indicates that Xen should scan the PCI bus for the UART,
+avoiding Intel AMT devices.</li>
+<li><code>amt</code> indicated that Xen should scan the PCI bus for the UART,
+including Intel AMT devices if present.</li>
+</ul>
+
+<p>A typical setup for most situations might be <code>com1=115200,8n1</code></p>
+
+<p>In addition to the above positional specification for UART parameters,
+name=value pair specfications are also supported. This is used to add
+flexibility for UART devices which require additional UART parameter
+configurations.</p>
+
+<p>The comma separation still delineates positional parameters. Hence,
+unless the parameter is explicitly specified with name=value option, it
+will be considered a positional parameter.</p>
+
+<p>The syntax consists of
+com1=(comma-separated positional parameters),(comma separated name-value pairs)</p>
+
+<p>The accepted name keywords for name=value pairs are:</p>
+
+<ul>
+<li><code>baud</code> - accepts integer baud rate (eg. 115200) or <code>auto</code></li>
+<li><code>bridge</code>- Similar to bridge-bdf in positional parameters.
+        Used to determine the PCI bridge to access the UART device.
+        Notation is xx:xx.x <code>&lt;bus&gt;:&lt;device&gt;.&lt;function&gt;</code></li>
+<li><code>clock-hz</code>- accepts large integers to setup UART clock frequencies.
+          Do note - these values are multiplied by 16.</li>
+<li><code>data-bits</code> - integer between 5 and 8</li>
+<li><code>dev</code> - accepted values are <code>pci</code> OR <code>amt</code>. If this option
+      is used to specify if the serial device is pci-based. The io_base
+      cannot be specified when <code>dev=pci</code> or <code>dev=amt</code> is used.</li>
+<li><code>io-base</code> - accepts integer which specified IO base port for UART registers</li>
+<li><code>irq</code> - IRQ number to use</li>
+<li><code>parity</code> - accepted values are same as positional parameters</li>
+<li><code>port</code> - Used to specify which port the PCI serial device is located on
+       Notation is xx:xx.x <code>&lt;bus&gt;:&lt;device&gt;.&lt;function&gt;</code></li>
+<li><code>reg-shift</code> - register shifts required to set UART registers</li>
+<li><code>reg-width</code> - register width required to set UART registers
+            (only accepts 1 and 4)</li>
+<li><code>stop-bits</code> - only accepts 1 or 2 for the number of stop bits</li>
+</ul>
+
+<p>The following are examples of correct specifications:</p>
+
+<pre><code>com1=115200,8n1,0x3f8,4
+com1=115200,8n1,0x3f8,4,reg\_width=4,reg\_shift=2
+com1=baud=115200,parity=n,stop\_bits=1,io\_base=0x3f8,reg\_width=4
+</code></pre>
+
+<h3>conring_size</h3>
+
+<blockquote>
+  <p><code>= &lt;size&gt;</code></p>
+
+<p>Default: <code>conring_size=16k</code></p>
+</blockquote>
+
+<p>Specify the size of the console ring buffer.</p>
+
+<h3>console</h3>
+
+<blockquote>
+  <p><code>= List of [ vga | com1[H,L] | com2[H,L] | pv | dbgp | none ]</code></p>
+
+<p>Default: <code>console=com1,vga</code></p>
+</blockquote>
+
+<p>Specify which console(s) Xen should use.</p>
+
+<p><code>vga</code> indicates that Xen should try and use the vga graphics adapter.</p>
+
+<p><code>com1</code> and <code>com2</code> indicates that Xen should use serial ports 1 and 2
+respectively.  Optionally, these arguments may be followed by an <code>H</code> or
+<code>L</code>.  <code>H</code> indicates that transmitted characters will have their MSB
+set, while received characters must have their MSB set.  <code>L</code> indicates
+the converse; transmitted and received characters will have their MSB
+cleared.  This allows a single port to be shared by two subsystems
+(e.g. console and debugger).</p>
+
+<p><code>pv</code> indicates that Xen should use Xen's PV console. This option is
+only available when used together with <code>pv-in-pvh</code>.</p>
+
+<p><code>dbgp</code> indicates that Xen should use a USB debug port.</p>
+
+<p><code>none</code> indicates that Xen should not use a console.  This option only
+makes sense on its own.</p>
+
+<h3>console_timestamps</h3>
+
+<blockquote>
+  <p><code>= none | date | datems | boot</code></p>
+
+<p>Default: <code>none</code></p>
+
+<p>Can be modified at runtime</p>
+</blockquote>
+
+<p>Specify which timestamp format Xen should use for each console line.</p>
+
+<ul>
+<li><code>none</code>: No timestamps</li>
+<li><code>date</code>: Date and time information
+<ul>
+<li><code>[YYYY-MM-DD HH:MM:SS]</code></li>
+</ul></li>
+<li><code>datems</code>: Date and time, with milliseconds
+<ul>
+<li><code>[YYYY-MM-DD HH:MM:SS.mmm]</code></li>
+</ul></li>
+<li><code>boot</code>: Seconds and microseconds since boot
+<ul>
+<li><code>[SSSSSS.uuuuuu]</code></li>
+</ul></li>
+</ul>
+
+<p>For compatibility with the older boolean parameter, specifying
+<code>console_timestamps</code> alone will enable the <code>date</code> option.</p>
+
+<h3>console_to_ring</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Flag to indicate whether all guest console output should be copied
+into the console ring buffer.</p>
+
+<h3>conswitch</h3>
+
+<blockquote>
+  <p><code>= &lt;switch char&gt;[x]</code></p>
+
+<p>Default: <code>conswitch=a</code></p>
+
+<p>Can be modified at runtime</p>
+</blockquote>
+
+<p>Specify which character should be used to switch serial input between
+Xen and dom0.  The required sequence is CTRL-&lt;switch char&gt; three
+times.</p>
+
+<p>The optional trailing <code>x</code> indicates that Xen should not automatically
+switch the console input to dom0 during boot.  Any other value,
+including omission, causes Xen to automatically switch to the dom0
+console during dom0 boot.  Use <code>conswitch=ax</code> to keep the default switch
+character, but for xen to keep the console.</p>
+
+<h3>core_parking</h3>
+
+<blockquote>
+  <p><code>= power | performance</code></p>
+
+<p>Default: <code>power</code></p>
+</blockquote>
+
+<h3>cpu_type (x86)</h3>
+
+<blockquote>
+  <p><code>= arch_perfmon</code></p>
+</blockquote>
+
+<p>If set, force use of the performance counters for oprofile, rather than detecting
+available support.</p>
+
+<h3>cpufreq</h3>
+
+<blockquote>
+  <p><code>= none | {{ &lt;boolean&gt; | xen } [:[powersave|performance|ondemand|userspace][,&lt;maxfreq&gt;][,[&lt;minfreq&gt;][,[verbose]]]]} | dom0-kernel</code></p>
+
+<p>Default: <code>xen</code></p>
+</blockquote>
+
+<p>Indicate where the responsibility for driving power states lies.  Note that the
+choice of <code>dom0-kernel</code> is deprecated and not supported by all Dom0 kernels.</p>
+
+<ul>
+<li>Default governor policy is ondemand.</li>
+<li><code>&lt;maxfreq&gt;</code> and <code>&lt;minfreq&gt;</code> are integers which represent max and min processor frequencies
+respectively.</li>
+<li><code>verbose</code> option can be included as a string or also as <code>verbose=&lt;integer&gt;</code></li>
+</ul>
+
+<h3>cpuid (x86)</h3>
+
+<blockquote>
+  <p><code>= List of comma separated booleans</code></p>
+</blockquote>
+
+<p>This option allows for fine tuning of the facilities Xen will use, after
+accounting for hardware capabilities as enumerated via CPUID.</p>
+
+<p>Currently accepted:</p>
+
+<p>The Speculation Control hardware features <code>ibrsb</code>, <code>stibp</code>, <code>ibpb</code>, <code>ssbd</code> are
+used by default if available and applicable.  They can be ignored,
+e.g. <code>no-ibrsb</code>, at which point Xen won't use them itself, and won't offer
+them to guests.</p>
+
+<h3>cpuid_mask_cpu (AMD only)</h3>
+
+<blockquote>
+  <p><code>= fam_0f_rev_c | fam_0f_rev_d | fam_0f_rev_e | fam_0f_rev_f | fam_0f_rev_g | fam_10_rev_b | fam_10_rev_c | fam_11_rev_b</code></p>
+</blockquote>
+
+<p>If the other <strong>cpuid_mask_{,ext_,thermal_,l7s0_}e{a,b,c,d}x</strong>
+options are fully set (unspecified on the command line), specify a
+pre-canned cpuid mask to mask the current processor down to appear as
+the specified processor. It is important to ensure that all hosts in a
+pool appear the same to guests to allow successful live migration.</p>
+
+<h3>cpuid_mask_{{,ext_}ecx,edx} (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+
+<p>Default: <code>~0</code> (all bits set)</p>
+</blockquote>
+
+<p>These four command line parameters are used to specify cpuid masks to
+help with cpuid levelling across a pool of hosts.  Setting a bit in
+the mask indicates that the feature should be enabled, while clearing
+a bit in the mask indicates that the feature should be disabled.  It
+is important to ensure that all hosts in a pool appear the same to
+guests to allow successful live migration.</p>
+
+<h3>cpuid_mask_xsave_eax (Intel only)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+
+<p>Default: <code>~0</code> (all bits set)</p>
+</blockquote>
+
+<p>This command line parameter is also used to specify a cpuid mask to
+help with cpuid levelling across a pool of hosts.  See the description
+of the other respective options above.</p>
+
+<h3>cpuid_mask_{l7s0_{eax,ebx},thermal_ecx} (AMD only)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+
+<p>Default: <code>~0</code> (all bits set)</p>
+</blockquote>
+
+<p>These three command line parameters are also used to specify cpuid
+masks to help with cpuid levelling across a pool of hosts.  See the
+description of the other respective options above.</p>
+
+<h3>cpuidle (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<h3>cpuinfo (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<h3>crashinfo_maxaddr</h3>
+
+<blockquote>
+  <p><code>= &lt;size&gt;</code></p>
+
+<p>Default: <code>4G</code></p>
+</blockquote>
+
+<p>Specify the maximum address to allocate certain structures, if used in
+combination with the <code>low_crashinfo</code> command line option.</p>
+
+<h3>crashkernel</h3>
+
+<blockquote>
+  <p><code>= &lt;ramsize-range&gt;:&lt;size&gt;[,...][{@,&lt;}&lt;offset&gt;]</code>
+<code>= &lt;size&gt;[{@,&lt;}&lt;offset&gt;]</code>
+<code>= &lt;size&gt;,below=offset</code></p>
+</blockquote>
+
+<p>Specify sizes and optionally placement of the crash kernel reservation
+area.  The <code>&lt;ramsize-range&gt;:&lt;size&gt;</code> pairs indicate how much memory to
+set aside for a crash kernel (<code>&lt;size&gt;</code>) for a given range of installed
+RAM (<code>&lt;ramsize-range&gt;</code>).  Each <code>&lt;ramsize-range&gt;</code> is of the form
+<code>&lt;start&gt;-[&lt;end&gt;]</code>.</p>
+
+<p>A trailing <code>@&lt;offset&gt;</code> specifies the exact address this area should be
+placed at, whereas <code>&lt;</code> in place of <code>@</code> just specifies an upper bound of
+the address range the area should fall into.</p>
+
+<p>&lt; and below are synonyomous, the latter being useful for grub2 systems
+which would otherwise require escaping of the &lt; option</p>
+
+<h3>credit2_balance_over</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<h3>credit2_balance_under</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<h3>credit2_cap_period_ms</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+
+<p>Default: <code>10</code></p>
+</blockquote>
+
+<p>Domains subject to a cap receive a replenishment of their runtime budget
+once every cap period interval. Default is 10 ms. The amount of budget
+they receive depends on their cap. For instance, a domain with a 50% cap
+will receive 50% of 10 ms, so 5 ms.</p>
+
+<h3>credit2_load_precision_shift</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+
+<p>Default: <code>18</code></p>
+</blockquote>
+
+<p>Specify the number of bits to use for the fractional part of the
+values involved in Credit2 load tracking and load balancing math.</p>
+
+<h3>credit2_load_window_shift</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+
+<p>Default: <code>30</code></p>
+</blockquote>
+
+<p>Specify the number of bits to use to represent the length of the
+window (in nanoseconds) we use for load tracking inside Credit2.
+This means that, with the default value (30), we use
+2^30 nsec ~= 1 sec long window.</p>
+
+<p>Load tracking is done by means of a variation of exponentially
+weighted moving average (EWMA). The window length defined here
+is what tells for how long we give value to previous history
+of the load itself. In fact, after a full window has passed,
+what happens is that we discard all previous history entirely.</p>
+
+<p>A short window will make the load balancer quick at reacting
+to load changes, but also short-sighted about previous history
+(and hence, e.g., long term load trends). A long window will
+make the load balancer thoughtful of previous history (and
+hence capable of capturing, e.g., long term load trends), but
+also slow in responding to load changes.</p>
+
+<p>The default value of <code>1 sec</code> is rather long.</p>
+
+<h3>credit2_runqueue</h3>
+
+<blockquote>
+  <p><code>= cpu | core | socket | node | all</code></p>
+
+<p>Default: <code>socket</code></p>
+</blockquote>
+
+<p>Specify how host CPUs are arranged in runqueues. Runqueues are kept
+balanced with respect to the load generated by the vCPUs running on
+them. Smaller runqueues (as in with <code>core</code>) means more accurate load
+balancing (for instance, it will deal better with hyperthreading),
+but also more overhead.</p>
+
+<p>Available alternatives, with their meaning, are:
+* <code>cpu</code>: one runqueue per each logical pCPUs of the host;
+* <code>core</code>: one runqueue per each physical core of the host;
+* <code>socket</code>: one runqueue per each physical socket (which often,
+            but not always, matches a NUMA node) of the host;
+* <code>node</code>: one runqueue per each NUMA node of the host;
+* <code>all</code>: just one runqueue shared by all the logical pCPUs of
+         the host</p>
+
+<h3>dbgp</h3>
+
+<blockquote>
+  <p><code>= ehci[ &lt;integer&gt; | @pci&lt;bus&gt;:&lt;slot&gt;.&lt;func&gt; ]</code></p>
+</blockquote>
+
+<p>Specify the USB controller to use, either by instance number (when going
+over the PCI busses sequentially) or by PCI device (must be on segment 0).</p>
+
+<h3>debug_stack_lines</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+
+<p>Default: <code>20</code></p>
+</blockquote>
+
+<p>Limits the number lines printed in Xen stack traces.</p>
+
+<h3>debugtrace</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+
+<p>Default: <code>128</code></p>
+</blockquote>
+
+<p>Specify the size of the console debug trace buffer in KiB. The debug
+trace feature is only enabled in debugging builds of Xen.</p>
+
+<h3>dma_bits</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<p>Specify the bit width of the DMA heap.</p>
+
+<h3>dom0 (x86)</h3>
+
+<blockquote>
+  <p><code>= List of [ pvh | shadow ]</code></p>
+
+<p>Sub-options:</p>
+
+<p><code>pvh</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Flag that makes a dom0 boot in PVHv2 mode.</p>
+
+<blockquote>
+  <p><code>shadow</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Flag that makes a dom0 use shadow paging. Only works when "pvh" is
+enabled.</p>
+
+<h3>dom0_ioports_disable (x86)</h3>
+
+<blockquote>
+  <p><code>= List of &lt;hex&gt;-&lt;hex&gt;</code></p>
+</blockquote>
+
+<p>Specify a list of IO ports to be excluded from dom0 access.</p>
+
+<h3>dom0_max_vcpus</h3>
+
+<p>Either:</p>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code>.</p>
+</blockquote>
+
+<p>The number of VCPUs to give to dom0.  This number of VCPUs can be more
+than the number of PCPUs on the host.  The default is the number of
+PCPUs.</p>
+
+<p>Or:</p>
+
+<blockquote>
+  <p><code>= &lt;min&gt;-&lt;max&gt;</code> where <code>&lt;min&gt;</code> and <code>&lt;max&gt;</code> are integers.</p>
+</blockquote>
+
+<p>Gives dom0 a number of VCPUs equal to the number of PCPUs, but always
+at least <code>&lt;min&gt;</code> and no more than <code>&lt;max&gt;</code>.  Using <code>&lt;min&gt;</code> may give
+more VCPUs than PCPUs.  <code>&lt;min&gt;</code> or <code>&lt;max&gt;</code> may be omitted and the
+defaults of 1 and unlimited respectively are used instead.</p>
+
+<p>For example, with <code>dom0_max_vcpus=4-8</code>:</p>
+
+<blockquote>
+<pre><code>   Number of
+PCPUs | Dom0 VCPUs
+ 2    |  4
+ 4    |  4
+ 6    |  6
+ 8    |  8
+10    |  8
+</code></pre>
+</blockquote>
+
+<h3>dom0_mem (ARM)</h3>
+
+<blockquote>
+  <p><code>= &lt;size&gt;</code></p>
+</blockquote>
+
+<p>Set the amount of memory for the initial domain (dom0). It must be
+greater than zero. This parameter is required.</p>
+
+<h3>dom0_mem (x86)</h3>
+
+<blockquote>
+  <p><code>= List of ( min:&lt;size&gt; | max:&lt;size&gt; | &lt;size&gt; )</code></p>
+</blockquote>
+
+<p>Set the amount of memory for the initial domain (dom0). If a size is
+positive, it represents an absolute value.  If a size is negative, it
+is subtracted from the total available memory.</p>
+
+<ul>
+<li><code>&lt;size&gt;</code> specifies the exact amount of memory.</li>
+<li><code>min:&lt;size&gt;</code> specifies the minimum amount of memory.</li>
+<li><code>max:&lt;size&gt;</code> specifies the maximum amount of memory.</li>
+</ul>
+
+<p>If <code>&lt;size&gt;</code> is not specified, the default is all the available memory
+minus some reserve.  The reserve is 1/16 of the available memory or
+128 MB (whichever is smaller).</p>
+
+<p>The amount of memory will be at least the minimum but never more than
+the maximum (i.e., <code>max</code> overrides the <code>min</code> option).  If there isn't
+enough memory then as much as possible is allocated.</p>
+
+<p><code>max:&lt;size&gt;</code> also sets the maximum reservation (the maximum amount of
+memory dom0 can balloon up to).  If this is omitted then the maximum
+reservation is unlimited.</p>
+
+<p>For example, to set dom0's initial memory allocation to 512MB but
+allow it to balloon up as far as 1GB use <code>dom0_mem=512M,max:1G</code></p>
+
+<p>If you use this option then it is highly recommended that you disable
+any dom0 autoballooning feature present in your toolstack. See the
+<em>xl.conf(5)</em> man page or <a href="http://wiki.xen.org/wiki/Xen_Best_Practices#Xen_dom0_dedicated_memory_and_preventing_dom0_memory_ballooning">Xen Best
+Practices</a>.</p>
+
+<p>This option doesn't have effect if pv-shim mode is enabled.</p>
+
+<h3>dom0_nodes (x86)</h3>
+
+<blockquote>
+  <p><code>= List of [ &lt;integer&gt; | relaxed | strict ]</code></p>
+
+<p>Default: <code>strict</code></p>
+</blockquote>
+
+<p>Specify the NUMA nodes to place Dom0 on. Defaults for vCPU-s created
+and memory assigned to Dom0 will be adjusted to match the node
+restrictions set up here. Note that the values to be specified here are
+ACPI PXM ones, not Xen internal node numbers. <code>relaxed</code> sets up vCPU
+affinities to prefer but be not limited to the specified node(s).</p>
+
+<h3>dom0_vcpus_pin</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Pin dom0 vcpus to their respective pcpus</p>
+
+<h3>dtuart (ARM)</h3>
+
+<blockquote>
+  <p><code>= path [:options]</code></p>
+
+<p>Default: <code>""</code></p>
+</blockquote>
+
+<p>Specify the full path in the device tree for the UART.  If the path doesn't
+start with <code>/</code>, it is assumed to be an alias.  The options are device specific.</p>
+
+<h3>e820-mtrr-clip (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<p>Flag that specifies if RAM should be clipped to the highest cacheable
+MTRR.</p>
+
+<blockquote>
+  <p>Default: <code>true</code> on Intel CPUs, otherwise <code>false</code></p>
+</blockquote>
+
+<h3>e820-verbose (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Flag that enables verbose output when processing e820 information and
+applying clipping.</p>
+
+<h3>edd (x86)</h3>
+
+<blockquote>
+  <p><code>= off | on | skipmbr</code></p>
+</blockquote>
+
+<p>Control retrieval of Extended Disc Data (EDD) from the BIOS during
+boot.</p>
+
+<h3>edid (x86)</h3>
+
+<blockquote>
+  <p><code>= no | force</code></p>
+</blockquote>
+
+<p>Either force retrieval of monitor EDID information via VESA DDC, or
+disable it (edid=no). This option should not normally be required
+except for debugging purposes.</p>
+
+<h3>efi</h3>
+
+<blockquote>
+  <p><code>= List of [ rs | attr ]</code></p>
+</blockquote>
+
+<p>All options are of boolean kind and can be prefixed with <code>no-</code> to
+effect the inverse meaning.</p>
+
+<blockquote>
+  <p><code>rs</code></p>
+
+<p>Default: <code>true</code></p>
+
+<blockquote>
+  <p>Force or disable use of EFI runtime services.</p>
+</blockquote>
+
+<p><code>attr=uc</code></p>
+
+<p>Default: <code>off</code></p>
+
+<blockquote>
+  <p>Allows mapping of RuntimeServices which have no cachability attribute
+set as UC.</p>
+</blockquote>
+
+<p></blockquote></p>
+
+<h3>ept (Intel)</h3>
+
+<blockquote>
+  <p><code>= List of ( {no-}pml | {no-}ad )</code></p>
+</blockquote>
+
+<p>Controls EPT related features.</p>
+
+<blockquote>
+  <p>Sub-options:</p>
+
+<p><code>pml</code></p>
+
+<p>Default: <code>true</code></p>
+
+<blockquote>
+  <p>PML is a new hardware feature in Intel's Broadwell Server and further
+platforms which reduces hypervisor overhead of log-dirty mechanism by
+automatically recording GPAs (guest physical addresses) when guest memory
+gets dirty, and therefore significantly reducing number of EPT violation
+caused by write protection of guest memory, which is a necessity to
+implement log-dirty mechanism before PML.</p>
+</blockquote>
+
+<p><code>ad</code></p>
+
+<p>Default: Hardware dependent</p>
+
+<blockquote>
+  <p>Have hardware keep accessed/dirty (A/D) bits updated.</p>
+</blockquote>
+
+<p></blockquote></p>
+
+<h3>extra_guest_irqs</h3>
+
+<blockquote>
+  <p><code>= [&lt;domU number&gt;][,&lt;dom0 number&gt;]</code></p>
+
+<p>Default: <code>32,&lt;variable&gt;</code></p>
+</blockquote>
+
+<p>Change the number of PIRQs available for guests.  The optional first number is
+common for all domUs, while the optional second number (preceded by a comma)
+is for dom0.  Changing the setting for domU has no impact on dom0 and vice
+versa.  For example to change dom0 without changing domU, use
+<code>extra_guest_irqs=,512</code>.  The default value for Dom0 and an eventual separate
+hardware domain is architecture dependent.
+Note that specifying zero as domU value means zero, while for dom0 it means
+to use the default.</p>
+
+<h3>flask</h3>
+
+<blockquote>
+  <p><code>= permissive | enforcing | late | disabled</code></p>
+
+<p>Default: <code>enforcing</code></p>
+</blockquote>
+
+<p>Specify how the FLASK security server should be configured.  This option is only
+available if the hypervisor was compiled with FLASK support.  This can be
+enabled by running either:
+- make -C xen config and enabling XSM and FLASK.
+- make -C xen menuconfig and enabling 'FLux Advanced Security Kernel support' and 'Xen Security Modules support'</p>
+
+<ul>
+<li><code>permissive</code>: This is intended for development and is not suitable for use
+with untrusted guests.  If a policy is provided by the bootloader, it will be
+loaded; errors will be reported to the ring buffer but will not prevent
+booting.  The policy can be changed to enforcing mode using "xl setenforce".</li>
+<li><code>enforcing</code>: This will cause the security server to enter enforcing mode prior
+to the creation of domain 0.  If an valid policy is not provided by the
+bootloader and no built-in policy is present, the hypervisor will not continue
+booting.</li>
+<li><code>late</code>: This disables loading of the built-in security policy or the policy
+provided by the bootloader.  FLASK will be enabled but will not enforce access
+controls until a policy is loaded by a domain using "xl loadpolicy".  Once a
+policy is loaded, FLASK will run in enforcing mode unless "xl setenforce" has
+changed that setting.</li>
+<li><code>disabled</code>: This causes the XSM framework to revert to the dummy module.  The
+dummy module provides the same security policy as is used when compiling the
+hypervisor without support for XSM.  The xsm_op hypercall can also be used to
+switch to this mode after boot, but there is no way to re-enable FLASK once
+the dummy module is loaded.</li>
+</ul>
+
+<h3>font</h3>
+
+<blockquote>
+  <p><code>= &lt;height&gt;</code> where height is <code>8x8 | 8x14 | 8x16</code></p>
+</blockquote>
+
+<p>Specify the font size when using the VESA console driver.</p>
+
+<h3>force-ept (Intel)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Allow EPT to be enabled when VMX feature VM_ENTRY_LOAD_GUEST_PAT is not
+present.</p>
+
+<p><em>Warning:</em>
+Due to CVE-2013-2212, VMX feature VM_ENTRY_LOAD_GUEST_PAT is by default
+required as a prerequisite for using EPT.  If you are not using PCI Passthrough,
+or trust the guest administrator who would be using passthrough, then the
+requirement can be relaxed.  This option is particularly useful for nested
+virtualization, to allow the L1 hypervisor to use EPT even if the L0 hypervisor
+does not provide VM_ENTRY_LOAD_GUEST_PAT.</p>
+
+<h3>gdb</h3>
+
+<blockquote>
+  <p><code>= com1[H,L] | com2[H,L] | dbgp</code></p>
+
+<p>Default: ``</p>
+</blockquote>
+
+<p>Specify which console gdbstub should use. See <strong>console</strong>.</p>
+
+<h3>gnttab</h3>
+
+<blockquote>
+  <p><code>= List of [ max-ver:&lt;integer&gt;, transitive=&lt;bool&gt; ]</code></p>
+
+<p>Default: <code>gnttab=max-ver:2,transitive</code></p>
+</blockquote>
+
+<p>Control various aspects of the grant table behaviour available to guests.</p>
+
+<ul>
+<li><code>max-ver</code> Select the maximum grant table version to offer to guests.  Valid
+version are 1 and 2.</li>
+<li><code>transitive</code> Permit or disallow the use of transitive grants.  Note that the
+use of grant table v2 without transitive grants is an ABI breakage from the
+guests point of view.</li>
+</ul>
+
+<h3>gnttab_max_frames</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+
+<p>Default: <code>64</code></p>
+
+<p>Can be modified at runtime</p>
+</blockquote>
+
+<p>Specify the maximum number of frames which any domain may use as part
+of its grant table. This value is an upper boundary of the per-domain
+value settable via Xen tools.</p>
+
+<p>Dom0 is using this value for sizing its grant table.</p>
+
+<h3>gnttab_max_maptrack_frames</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+
+<p>Default: <code>1024</code></p>
+
+<p>Can be modified at runtime</p>
+</blockquote>
+
+<p>Specify the maximum number of frames to use as part of a domains
+maptrack array. This value is an upper boundary of the per-domain
+value settable via Xen tools.</p>
+
+<p>Dom0 is using this value for sizing its maptrack table.</p>
+
+<h3>guest_loglvl</h3>
+
+<blockquote>
+  <p><code>= &lt;level&gt;[/&lt;rate-limited level&gt;]</code> where level is <code>none | error | warning | info | debug | all</code></p>
+
+<p>Default: <code>guest_loglvl=none/warning</code></p>
+
+<p>Can be modified at runtime</p>
+</blockquote>
+
+<p>Set the logging level for Xen guests.  Any log message with equal more
+more importance will be printed.</p>
+
+<p>The optional <code>&lt;rate-limited level&gt;</code> option instructs which severities
+should be rate limited.</p>
+
+<h3>hap (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Flag to globally enable or disable support for Hardware Assisted
+Paging (HAP)</p>
+
+<h3>hap_1gb (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Flag to enable 1 GB host page table support for Hardware Assisted
+Paging (HAP).</p>
+
+<h3>hap_2mb (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Flag to enable 2 MB host page table support for Hardware Assisted
+Paging (HAP).</p>
+
+<h3>hardware_dom</h3>
+
+<blockquote>
+  <p><code>= &lt;domid&gt;</code></p>
+
+<p>Default: <code>0</code></p>
+</blockquote>
+
+<p>Enable late hardware domain creation using the specified domain ID.  This is
+intended to be used when domain 0 is a stub domain which builds a disaggregated
+system including a hardware domain with the specified domain ID.  This option is
+supported only when compiled with XSM on x86.</p>
+
+<h3>hest_disable</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Control Xens use of the APEI Hardware Error Source Table, should one be found.</p>
+
+<h3>highmem-start (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;size&gt;</code></p>
+</blockquote>
+
+<p>Specify the memory boundary past which memory will be treated as highmem (x86
+debug hypervisor only).</p>
+
+<h3>hmp-unsafe (arm)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default : <code>false</code></p>
+</blockquote>
+
+<p>Say yes at your own risk if you want to enable heterogenous computing
+(such as big.LITTLE). This may result to an unstable and insecure
+platform, unless you manually specify the cpu affinity of all domains so
+that all vcpus are scheduled on the same class of pcpus (big or LITTLE
+but not both). vcpu migration between big cores and LITTLE cores is not
+supported. See docs/misc/arm/big.LITTLE.txt for more information.</p>
+
+<p>When the hmp-unsafe option is disabled (default), CPUs that are not
+identical to the boot CPU will be parked and not used by Xen.</p>
+
+<h3>hpetbroadcast (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<h3>hvm_debug (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<p>The specified value is a bit mask with the individual bits having the
+following meaning:</p>
+
+<blockquote>
+<pre><code>Bit  0 - debug level 0 (unused at present)
+Bit  1 - debug level 1 (Control Register logging)
+Bit  2 - debug level 2 (VMX logging of MSR restores when context switching)
+Bit  3 - debug level 3 (unused at present)
+Bit  4 - I/O operation logging
+Bit  5 - vMMU logging
+Bit  6 - vLAPIC general logging
+Bit  7 - vLAPIC timer logging
+Bit  8 - vLAPIC interrupt logging
+Bit  9 - vIOAPIC logging
+Bit 10 - hypercall logging
+Bit 11 - MSR operation logging
+</code></pre>
+</blockquote>
+
+<p>Recognized in debug builds of the hypervisor only.</p>
+
+<h3>hvm_fep (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Allow use of the Forced Emulation Prefix in HVM guests, to allow emulation of
+arbitrary instructions.</p>
+
+<p>This option is intended for development and testing purposes.</p>
+
+<p><em>Warning</em>
+As this feature opens up the instruction emulator to arbitrary
+instruction from an HVM guest, don't use this in production system. No
+security support is provided when this flag is set.</p>
+
+<h3>hvm_port80 (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Specify whether guests are to be given access to physical port 80
+(often used for debugging purposes), to override the DMI based
+detection of systems known to misbehave upon accesses to that port.</p>
+
+<h3>idle_latency_factor (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<h3>ioapic_ack (x86)</h3>
+
+<blockquote>
+  <p><code>= old | new</code></p>
+
+<p>Default: <code>new</code> unless directed-EOI is supported</p>
+</blockquote>
+
+<h3>iommu</h3>
+
+<blockquote>
+  <p><code>= List of [ &lt;boolean&gt; | force | required | intremap | intpost | qinval | snoop | sharept | dom0-passthrough | dom0-strict | amd-iommu-perdev-intremap | workaround_bios_bug | igfx | verbose | debug ]</code></p>
+
+<p>Sub-options:</p>
+
+<p><code>&lt;boolean&gt;</code></p>
+
+<p>Default: <code>on</code></p>
+
+<blockquote>
+  <p>Control the use of IOMMU(s) in the system.</p>
+</blockquote>
+
+<p>All other sub-options are of boolean kind and can be prefixed with <code>no-</code> to
+effect the inverse meaning.</p>
+
+<p><code>force</code> or <code>required</code></p>
+
+<p>Default: <code>false</code></p>
+
+<blockquote>
+  <p>Don't continue booting unless IOMMU support is found and can be initialized
+successfully.</p>
+</blockquote>
+
+<p><code>intremap</code></p>
+
+<p>Default: <code>true</code></p>
+
+<blockquote>
+  <p>Control the use of interrupt remapping (DMA remapping will always be enabled
+if IOMMU functionality is enabled).</p>
+</blockquote>
+
+<p><code>intpost</code></p>
+
+<p>Default: <code>false</code></p>
+
+<blockquote>
+  <p>Control the use of interrupt posting, which depends on the availability of
+interrupt remapping.</p>
+</blockquote>
+
+<p><code>qinval</code> (VT-d)</p>
+
+<p>Default: <code>true</code></p>
+
+<blockquote>
+  <p>Control the use of Queued Invalidation.</p>
+</blockquote>
+
+<p><code>snoop</code> (Intel)</p>
+
+<p>Default: <code>true</code></p>
+
+<blockquote>
+  <p>Control the use of Snoop Control.</p>
+</blockquote>
+
+<p><code>sharept</code></p>
+
+<p>Default: <code>true</code></p>
+
+<blockquote>
+  <p>Control whether CPU and IOMMU page tables should be shared.</p>
+</blockquote>
+
+<p><code>dom0-passthrough</code></p>
+
+<p>Default: <code>false</code></p>
+
+<blockquote>
+  <p>Control whether to disable DMA remapping for Dom0.</p>
+</blockquote>
+
+<p><code>dom0-strict</code></p>
+
+<p>Default: <code>false</code></p>
+
+<blockquote>
+  <p>Control whether to set up DMA remapping only for the memory Dom0 actually
+got assigned. Implies <code>no-dom0-passthrough</code>.</p>
+</blockquote>
+
+<p><code>amd-iommu-perdev-intremap</code></p>
+
+<p>Default: <code>true</code></p>
+
+<blockquote>
+  <p>Control whether to set up interrupt remapping data structures per device
+rather that once for the entire system. Turning this off is making PCI
+device pass-through insecure and hence unsupported.</p>
+</blockquote>
+
+<p><code>workaround_bios_bug</code> (VT-d)</p>
+
+<p>Default: <code>false</code></p>
+
+<blockquote>
+  <p>Causes DRHD entries without any PCI discoverable devices under them to be
+ignored (normally IOMMU setup fails if any of the devices listed by a DRHD
+entry aren't PCI discoverable).</p>
+</blockquote>
+
+<p><code>igfx</code> (VT-d)</p>
+
+<p>Default: <code>true</code></p>
+
+<blockquote>
+  <p>Enable IOMMU for Intel graphics devices. The intended usage of this option
+is <code>no-igfx</code>, which is similar to Linux <code>intel_iommu=igfx_off</code> option used
+to workaround graphics issues. If adding <code>no-igfx</code> fixes anything, you
+should file a bug reporting the problem.</p>
+</blockquote>
+
+<p><code>verbose</code></p>
+
+<p>Default: <code>false</code></p>
+
+<blockquote>
+  <p>Increase IOMMU code's verbosity.</p>
+</blockquote>
+
+<p><code>debug</code></p>
+
+<p>Default: <code>false</code></p>
+
+<blockquote>
+  <p>Enable IOMMU debugging code (implies <code>verbose</code>).</p>
+</blockquote>
+
+<p></blockquote></p>
+
+<h3>iommu_dev_iotlb_timeout</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+
+<p>Default: <code>1000</code></p>
+</blockquote>
+
+<p>Specify the timeout of the device IOTLB invalidation in milliseconds.
+By default, the timeout is 1000 ms. When you see error 'Queue invalidate
+wait descriptor timed out', try increasing this value.</p>
+
+<h3>iommu_inclusive_mapping (VT-d)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Use this to work around firmware issues providing incorrect RMRR entries.
+Rather than only mapping RAM pages for IOMMU accesses for Dom0, with this
+option all pages not marked as unusable in the E820 table will get a mapping
+established.</p>
+
+<h3>irq_ratelimit (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<h3>irq_vector_map (x86)</h3>
+
+<h3>ivrs_hpet[<code>&lt;hpet&gt;</code>] (AMD)</h3>
+
+<blockquote>
+  <p><code>=[&lt;seg&gt;:]&lt;bus&gt;:&lt;device&gt;.&lt;func&gt;</code></p>
+</blockquote>
+
+<p>Force the use of <code>[&lt;seg&gt;:]&lt;bus&gt;:&lt;device&gt;.&lt;func&gt;</code> as device ID of HPET
+<code>&lt;hpet&gt;</code> instead of the one specified by the IVHD sub-tables of the IVRS
+ACPI table.</p>
+
+<h3>ivrs_ioapic[<code>&lt;ioapic&gt;</code>] (AMD)</h3>
+
+<blockquote>
+  <p><code>=[&lt;seg&gt;:]&lt;bus&gt;:&lt;device&gt;.&lt;func&gt;</code></p>
+</blockquote>
+
+<p>Force the use of <code>[&lt;seg&gt;:]&lt;bus&gt;:&lt;device&gt;.&lt;func&gt;</code> as device ID of IO-APIC
+<code>&lt;ioapic&gt;</code> instead of the one specified by the IVHD sub-tables of the IVRS
+ACPI table.</p>
+
+<h3>lapic (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<p>Force the use of use of the local APIC on a uniprocessor system, even
+if left disabled by the BIOS.</p>
+
+<h3>lapic_timer_c2_ok (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<h3>ler (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<h3>loglvl</h3>
+
+<blockquote>
+  <p><code>= &lt;level&gt;[/&lt;rate-limited level&gt;]</code> where level is <code>none | error | warning | info | debug | all</code></p>
+
+<p>Default: <code>loglvl=warning</code></p>
+
+<p>Can be modified at runtime</p>
+</blockquote>
+
+<p>Set the logging level for Xen.  Any log message with equal more more
+importance will be printed.</p>
+
+<p>The optional <code>&lt;rate-limited level&gt;</code> option instructs which severities
+should be rate limited.</p>
+
+<h3>low_crashinfo</h3>
+
+<blockquote>
+  <p><code>= none | min | all</code></p>
+
+<p>Default: <code>none</code> if not specified at all, or to <code>min</code> if <strong>low_crashinfo</strong> is present without qualification.</p>
+</blockquote>
+
+<p>This option is only useful for hosts with a 32bit dom0 kernel, wishing
+to use kexec functionality in the case of a crash.  It represents
+which data structures should be deliberately allocated in low memory,
+so the crash kernel may find find them.  Should be used in combination
+with <strong>crashinfo_maxaddr</strong>.</p>
+
+<h3>low_mem_virq_limit</h3>
+
+<blockquote>
+  <p><code>= &lt;size&gt;</code></p>
+
+<p>Default: <code>64M</code></p>
+</blockquote>
+
+<p>Specify the threshold below which Xen will inform dom0 that the quantity of
+free memory is getting low.  Specifying <code>0</code> will disable this notification.</p>
+
+<h3>maxcpus (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<h3>max_cstate (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<h3>max_gsi_irqs (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<p>Specifies the number of interrupts to be use for pin (IO-APIC or legacy PIC)
+based interrupts. Any higher IRQs will be available for use via PCI MSI.</p>
+
+<h3>max_lpi_bits (arm)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<p>Specifies the number of ARM GICv3 LPI interrupts to allocate on the host,
+presented as the number of bits needed to encode it. This must be at least
+14 and not exceed 32, and each LPI requires one byte (configuration) and
+one pending bit to be allocated.
+Defaults to 20 bits (to cover at most 1048576 interrupts).</p>
+
+<h3>mce (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<h3>mce_fb (Intel)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<h3>mce_verbosity (x86)</h3>
+
+<blockquote>
+  <p><code>= verbose</code></p>
+</blockquote>
+
+<p>Specify verbose machine check output.</p>
+
+<h3>mem (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;size&gt;</code></p>
+</blockquote>
+
+<p>Specify the maximum address of physical RAM.  Any RAM beyond this
+limit is ignored by Xen.</p>
+
+<h3>memop-max-order</h3>
+
+<blockquote>
+  <p><code>= [&lt;domU&gt;][,[&lt;ctldom&gt;][,[&lt;hwdom&gt;][,&lt;ptdom&gt;]]]</code></p>
+
+<p>x86 default: <code>9,18,12,12</code>
+ARM default: <code>9,18,10,10</code></p>
+</blockquote>
+
+<p>Change the maximum order permitted for allocation (or allocation-like)
+requests issued by the various kinds of domains (in this order:
+ordinary DomU, control domain, hardware domain, and - when supported
+by the platform - DomU with pass-through device assigned).</p>
+
+<h3>mmcfg (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;[,amd-fam10]</code></p>
+
+<p>Default: <code>1</code></p>
+</blockquote>
+
+<p>Specify if the MMConfig space should be enabled.</p>
+
+<h3>mmio-relax (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt; | all</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>By default, domains may not create cached mappings to MMIO regions.
+This option relaxes the check for Domain 0 (or when using <code>all</code>, all PV
+domains), to permit the use of cacheable MMIO mappings.</p>
+
+<h3>msi (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Force Xen to (not) use PCI-MSI, even if ACPI FADT says otherwise.</p>
+
+<h3>mtrr.show (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Print boot time MTRR state.</p>
+
+<h3>mwait-idle (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Use the MWAIT idle driver (with model specific C-state knowledge) instead
+of the ACPI based one.</p>
+
+<h3>nmi (x86)</h3>
+
+<blockquote>
+  <p><code>= ignore | dom0 | fatal</code></p>
+
+<p>Default: <code>fatal</code> for a debug build, or <code>dom0</code> for a non-debug build</p>
+</blockquote>
+
+<p>Specify what Xen should do in the event of an NMI parity or I/O error.
+<code>ignore</code> discards the error; <code>dom0</code> causes Xen to report the error to
+dom0, while 'fatal' causes Xen to print diagnostics and then hang.</p>
+
+<h3>noapic (x86)</h3>
+
+<p>Instruct Xen to ignore any IOAPICs that are present in the system, and
+instead continue to use the legacy PIC. This is <em>not</em> recommended with
+pvops type kernels.</p>
+
+<p>Because responsibility for APIC setup is shared between Xen and the
+domain 0 kernel this option is automatically propagated to the domain
+0 command line.</p>
+
+<h3>invpcid (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>By default, Xen will use the INVPCID instruction for TLB management if
+it is available.  This option can be used to cause Xen to fall back to
+older mechanisms, which are generally slower.</p>
+
+<h3>noirqbalance (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<p>Disable software IRQ balancing and affinity. This can be used on
+systems such as Dell 1850/2850 that have workarounds in hardware for
+IRQ routing issues.</p>
+
+<h3>nolapic (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Ignore the local APIC on a uniprocessor system, even if enabled by the
+BIOS.</p>
+
+<h3>no-real-mode (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<p>Do not execute real-mode bootstrap code when booting Xen. This option
+should not be used except for debugging. It will effectively disable
+the <strong>vga</strong> option, which relies on real mode to set the video mode.</p>
+
+<h3>noreboot</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<p>Do not automatically reboot after an error.  This is useful for
+catching debug output.  Defaults to automatically reboot after 5
+seconds.</p>
+
+<h3>nosmp (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<p>Disable SMP support.  No secondary processors will be booted.
+Defaults to booting secondary processors.</p>
+
+<h3>nr_irqs (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<h3>numa (x86)</h3>
+
+<blockquote>
+  <p><code>= on | off | fake=&lt;integer&gt; | noacpi</code></p>
+
+<p>Default: <code>on</code></p>
+</blockquote>
+
+<h3>pci</h3>
+
+<blockquote>
+  <p><code>= {no-}serr | {no-}perr</code></p>
+
+<p>Default: Signaling left as set by firmware.</p>
+</blockquote>
+
+<p>Disable signaling of SERR (system errors) and/or PERR (parity errors)
+on all PCI devices.</p>
+
+<h3>pci-phantom</h3>
+
+<blockquote>
+  <p><code>=[&lt;seg&gt;:]&lt;bus&gt;:&lt;device&gt;,&lt;stride&gt;</code></p>
+</blockquote>
+
+<p>Mark a group of PCI devices as using phantom functions without actually
+advertising so, so the IOMMU can create translation contexts for them.</p>
+
+<p>All numbers specified must be hexadecimal ones.</p>
+
+<p>This option can be specified more than once (up to 8 times at present).</p>
+
+<h3>pcid (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt; | xpti=&lt;bool&gt;</code></p>
+
+<p>Default: <code>xpti</code></p>
+
+<p>Can be modified at runtime (change takes effect only for domains created
+  afterwards)</p>
+</blockquote>
+
+<p>If available, control usage of the PCID feature of the processor for
+64-bit pv-domains. PCID can be used either for no domain at all (<code>false</code>),
+for all of them (<code>true</code>), only for those subject to XPTI (<code>xpti</code>) or for
+those not subject to XPTI (<code>no-xpti</code>). The feature is used only in case
+INVPCID is supported and not disabled via <code>invpcid=false</code>.</p>
+
+<h3>pku (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Flag to enable Memory Protection Keys.</p>
+
+<p>The protection-key feature provides an additional mechanism by which IA-32e
+paging controls access to usermode addresses.</p>
+
+<h3>ple_gap</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<h3>ple_window (Intel)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<h3>psr (Intel)</h3>
+
+<blockquote>
+  <p><code>= List of ( cmt:&lt;boolean&gt; | rmid_max:&lt;integer&gt; | cat:&lt;boolean&gt; | cos_max:&lt;integer&gt; | cdp:&lt;boolean&gt; )</code></p>
+
+<p>Default: <code>psr=cmt:0,rmid_max:255,cat:0,cos_max:255,cdp:0</code></p>
+</blockquote>
+
+<p>Platform Shared Resource(PSR) Services.  Intel Haswell and later server
+platforms offer information about the sharing of resources.</p>
+
+<p>To use the PSR monitoring service for a certain domain, a Resource
+Monitoring ID(RMID) is used to bind the domain to corresponding shared
+resource.  RMID is a hardware-provided layer of abstraction between software
+and logical processors.</p>
+
+<p>To use the PSR cache allocation service for a certain domain, a capacity
+bitmasks(CBM) is used to bind the domain to corresponding shared resource.
+CBM represents cache capacity and indicates the degree of overlap and isolation
+between domains. In hypervisor a Class of Service(COS) ID is allocated for each
+unique CBM.</p>
+
+<p>The following resources are available:</p>
+
+<ul>
+<li>Cache Monitoring Technology (Haswell and later).  Information regarding the
+L3 cache occupancy.
+<ul>
+<li><code>cmt</code> instructs Xen to enable/disable Cache Monitoring Technology.</li>
+<li><code>rmid_max</code> indicates the max value for rmid.</li>
+</ul></li>
+<li><p>Memory Bandwidth Monitoring (Broadwell and later). Information regarding the
+total/local memory bandwidth. Follow the same options with Cache Monitoring
+Technology.</p></li>
+<li><p>Cache Allocation Technology (Broadwell and later).  Information regarding
+the cache allocation.</p>
+
+<ul>
+<li><code>cat</code> instructs Xen to enable/disable Cache Allocation Technology.</li>
+<li><code>cos_max</code> indicates the max value for COS ID.</li>
+</ul></li>
+<li>Code and Data Prioritization Technology (Broadwell and later). Information
+regarding the code cache and the data cache allocation. CDP is based on CAT.
+<ul>
+<li><code>cdp</code> instructs Xen to enable/disable Code and Data Prioritization. Note
+that <code>cos_max</code> of CDP is a little different from <code>cos_max</code> of CAT. With
+CDP, one COS will corespond two CBMs other than one with CAT, due to the
+sum of CBMs is fixed, that means actual <code>cos_max</code> in use will automatically
+reduce to half when CDP is enabled.</li>
+</ul></li>
+</ul>
+
+<h3>pv-linear-pt (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Only available if Xen is compiled with CONFIG_PV_LINEAR_PT support
+enabled.</p>
+
+<p>Allow PV guests to have pagetable entries pointing to other pagetables
+of the same level (i.e., allowing L2 PTEs to point to other L2 pages).
+This technique is often called "linear pagetables", and is sometimes
+used to allow operating systems a simple way to consistently map the
+current process's pagetables into its own virtual address space.</p>
+
+<p>Linux and MiniOS don't use this technique.  NetBSD and Novell Netware
+do; there may be other custom operating systems which do.  If you're
+certain you don't plan on having PV guests which use this feature,
+turning it off can reduce the attack surface.</p>
+
+<h3>pv-shim (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>This option is intended for use by a toolstack, when choosing to run a PV
+guest compatibly inside an HVM container.</p>
+
+<p>In this mode, the kernel and initrd passed as modules to the hypervisor are
+constructed into a plain unprivileged PV domain.</p>
+
+<h3>rcu-idle-timer-period-ms</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+
+<p>Default: <code>10</code></p>
+</blockquote>
+
+<p>How frequently a CPU which has gone idle, but with pending RCU callbacks,
+should be woken up to check if the grace period has completed, and the
+callbacks are safe to be executed. Expressed in milliseconds; maximum is
+100, and it can't be 0.</p>
+
+<h3>reboot (x86)</h3>
+
+<blockquote>
+  <p><code>= t[riple] | k[bd] | a[cpi] | p[ci] | P[ower] | e[fi] | n[o] [, [w]arm | [c]old]</code></p>
+
+<p>Default: <code>0</code></p>
+</blockquote>
+
+<p>Specify the host reboot method.</p>
+
+<p><code>warm</code> instructs Xen to not set the cold reboot flag.</p>
+
+<p><code>cold</code> instructs Xen to set the cold reboot flag.</p>
+
+<p><code>no</code> instructs Xen to not automatically reboot after panics or crashes.</p>
+
+<p><code>triple</code> instructs Xen to reboot the host by causing a triple fault.</p>
+
+<p><code>kbd</code> instructs Xen to reboot the host via the keyboard controller.</p>
+
+<p><code>acpi</code> instructs Xen to reboot the host using RESET_REG in the ACPI FADT.</p>
+
+<p><code>pci</code> instructs Xen to reboot the host using PCI reset register (port CF9).</p>
+
+<p><code>Power</code> instructs Xen to power-cycle the host using PCI reset register (port CF9).</p>
+
+<p>'efi' instructs Xen to reboot using the EFI reboot call (in EFI mode by
+ default it will use that method first).</p>
+
+<p><code>xen</code> instructs Xen to reboot using Xen's SCHEDOP hypercall (this is the default
+when running nested Xen)</p>
+
+<h3>rmrr</h3>
+
+<blockquote>
+  <p>'= start&lt;-end>=[s1]bdf1[,[s1]bdf2[,...]];start&lt;-end>=[s2]bdf1[,[s2]bdf2[,...]]</p>
+</blockquote>
+
+<p>Define RMRR units that are missing from ACPI table along with device they
+belong to and use them for 1:1 mapping. End addresses can be omitted and one
+page will be mapped. The ranges are inclusive when start and end are specified.
+If segment of the first device is not specified, segment zero will be used.
+If other segments are not specified, first device segment will be used.
+If a segment is specified for other than the first device and it does not match
+the one specified for the first one, an error will be reported.</p>
+
+<p>'start' and 'end' values are page numbers (not full physical addresses),
+in hexadecimal format (can optionally be preceded by "0x").</p>
+
+<p>Usage example: If device 0:0:1d.0 requires one page (0xd5d45) to be
+reserved, and device 0:0:1a.0 requires three pages (0xd5d46 thru 0xd5d48)
+to be reserved, one usage would be:</p>
+
+<p>rmrr=d5d45=0:0:1d.0;0xd5d46-0xd5d48=0:0:1a.0</p>
+
+<p>Note: grub2 requires to escape or use quotations if special characters are used,
+namely ';', refer to the grub2 documentation if multiple ranges are specified.</p>
+
+<h3>ro-hpet (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Map the HPET page as read only in Dom0. If disabled the page will be mapped
+with read and write permissions.</p>
+
+<h3>sched</h3>
+
+<blockquote>
+  <p><code>= credit | credit2 | arinc653 | rtds | null</code></p>
+
+<p>Default: <code>sched=credit</code></p>
+</blockquote>
+
+<p>Choose the default scheduler.</p>
+
+<h3>sched_credit2_migrate_resist</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<h3>sched_credit_tslice_ms</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<p>Set the timeslice of the credit1 scheduler, in milliseconds.  The
+default is 30ms.  Reasonable values may include 10, 5, or even 1 for
+very latency-sensitive workloads.</p>
+
+<h3>sched_ratelimit_us</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<p>In order to limit the rate of context switching, set the minimum
+amount of time that a vcpu can be scheduled for before preempting it,
+in microseconds.  The default is 1000us (1ms).  Setting this to 0
+disables it altogether.</p>
+
+<h3>sched_smt_power_savings</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<p>Normally Xen will try to maximize performance and cache utilization by
+spreading out vcpus across as many different divisions as possible
+(i.e, numa nodes, sockets, cores threads, &amp;c).  This often maximizes
+throughput, but also maximizes energy usage, since it reduces the
+depth to which a processor can sleep.</p>
+
+<p>This option inverts the logic, so that the scheduler in effect tries
+to keep the vcpus on the smallest amount of silicon possible; i.e.,
+first fill up sibling threads, then sibling cores, then sibling
+sockets, &amp;c.  This will reduce performance somewhat, particularly on
+systems with hyperthreading enabled, but should reduce power by
+enabling more sockets and cores to go into deeper sleep states.</p>
+
+<h3>serial_tx_buffer</h3>
+
+<blockquote>
+  <p><code>= &lt;size&gt;</code></p>
+
+<p>Default: <code>16kB</code></p>
+</blockquote>
+
+<p>Set the serial transmit buffer size.</p>
+
+<h3>serrors (ARM)</h3>
+
+<blockquote>
+  <p><code>= diverse | forward | panic</code></p>
+
+<p>Default: <code>diverse</code></p>
+</blockquote>
+
+<p>This parameter is provided to administrators to determine how the
+hypervisors handle SErrors.</p>
+
+<p>In order to distinguish guest-generated SErrors from hypervisor-generated
+SErrors we have to place SError checking code in every EL1 &lt;-> EL2 paths.
+That will cause overhead on entries and exits due to dsb/isb. However, not all
+platforms need to categorize SErrors. For example, a host that is running with
+trusted guests. The administrator can confirm that all guests that are running
+on the host will not trigger such SErrors. In this case, the administrator can
+use this parameter to skip categorizing SErrors and reduce the overhead of
+dsb/isb.</p>
+
+<p>We provided the following 3 options to administrators to determine how the
+hypervisors handle SErrors:</p>
+
+<ul>
+<li><p><code>diverse</code>:
+The hypervisor will distinguish guest SErrors from hypervisor SErrors.
+The guest generated SErrors will be forwarded to guests, the hypervisor
+generated SErrors will cause the whole system to crash.
+It requires:</p>
+
+<ol>
+<li>dsb/isb on all EL1 -> EL2 trap entries to categorize SErrors correctly.</li>
+<li>dsb/isb on EL2 -> EL1 return paths to prevent slipping hypervisor
+SErrors to guests.</li>
+<li>dsb/isb in context switch to isolate SErrors between 2 vCPUs.</li>
+</ol></li>
+<li><p><code>forward</code>:
+The hypervisor will not distinguish guest SErrors from hypervisor SErrors.
+All SErrors will be forwarded to guests, except the SErrors generated when
+the idle vCPU is running. The idle domain doesn't have the ability to handle
+SErrors, so we have to crash the whole system when we get SErros with the
+idle vCPU. This option will avoid most overhead of the dsb/isb, except the
+dsb/isb in context switch which is used to isolate the SErrors between 2
+vCPUs.</p></li>
+<li><p><code>panic</code>:
+The hypervisor will not distinguish guest SErrors from hypervisor SErrors.
+All SErrors will crash the whole system. This option will avoid all overhead
+of the dsb/isb pairs.</p></li>
+</ul>
+
+<h3>shim_mem (x86)</h3>
+
+<blockquote>
+  <p><code>= List of ( min:&lt;size&gt; | max:&lt;size&gt; | &lt;size&gt; )</code></p>
+</blockquote>
+
+<p>Set the amount of memory that xen-shim uses. Only has effect if pv-shim mode is
+enabled. Note that this value accounts for the memory used by the shim itself
+plus the free memory slack given to the shim for runtime allocations.</p>
+
+<ul>
+<li><code>min:&lt;size&gt;</code> specifies the minimum amount of memory. Ignored if greater
+than max.</li>
+<li><code>max:&lt;size&gt;</code> specifies the maximum amount of memory.</li>
+<li><code>&lt;size&gt;</code> specifies the exact amount of memory. Overrides both min and max.</li>
+</ul>
+
+<p>By default, the amount of free memory slack given to the shim for runtime usage
+is 1MB.</p>
+
+<h3>smap (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt; | hvm</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Flag to enable Supervisor Mode Access Prevention
+Use <code>smap=hvm</code> to allow SMAP use by HVM guests only.</p>
+
+<h3>smep (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt; | hvm</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Flag to enable Supervisor Mode Execution Protection
+Use <code>smep=hvm</code> to allow SMEP use by HVM guests only.</p>
+
+<h3>snb_igd_quirk</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt; | cap | &lt;integer&gt;</code></p>
+</blockquote>
+
+<p>A true boolean value enables legacy behavior (1s timeout), while <code>cap</code>
+enforces the maximum theoretically necessary timeout of 670ms. Any number
+is being interpreted as a custom timeout in milliseconds. Zero or boolean
+false disable the quirk workaround, which is also the default.</p>
+
+<h3>spec-ctrl (x86)</h3>
+
+<blockquote>
+  <p><code>= List of [ &lt;bool&gt;, xen=&lt;bool&gt;, {pv,hvm,msr-sc,rsb}=&lt;bool&gt;,
+             bti-thunk=retpoline|lfence|jmp, {ibrs,ibpb,ssbd,eager-fpu}=&lt;bool&gt; ]</code></p>
+</blockquote>
+
+<p>Controls for speculative execution sidechannel mitigations.  By default, Xen
+will pick the most appropriate mitigations based on compiled in support,
+loaded microcode, and hardware details, and will virtualise appropriate
+mitigations for guests to use.</p>
+
+<p><strong>WARNING: Any use of this option may interfere with heuristics.  Use with
+extreme care.</strong></p>
+
+<p>An overall boolean value, <code>spec-ctrl=no</code>, can be specified to turn off all
+mitigations, including pieces of infrastructure used to virtualise certain
+mitigation features for guests.  Alternatively, a slightly more restricted
+<code>spec-ctrl=no-xen</code> can be used to turn off all of Xen's mitigations, while
+leaving the virtualisation support in place for guests to use.  Use of a
+positive boolean value for either of these options is invalid.</p>
+
+<p>The booleans <code>pv=</code>, <code>hvm=</code>, <code>msr-sc=</code> and <code>rsb=</code> offer fine grained control
+over the alternative blocks used by Xen.  These impact Xen's ability to
+protect itself, and Xen's ability to virtualise support for guests to use.</p>
+
+<ul>
+<li><code>pv=</code> and <code>hvm=</code> offer control over all suboptions for PV and HVM guests
+respectively.</li>
+<li><code>msr-sc=</code> offers control over Xen's support for manipulating MSR_SPEC_CTRL
+on entry and exit.  These blocks are necessary to virtualise support for
+guests and if disabled, guests will be unable to use IBRS/STIBP/SSBD/etc.</li>
+<li><code>rsb=</code> offers control over whether to overwrite the Return Stack Buffer /
+Return Address Stack on entry to Xen.</li>
+</ul>
+
+<p>If Xen was compiled with INDIRECT_THUNK support, <code>bti-thunk=</code> can be used to
+select which of the thunks gets patched into the <code>__x86_indirect_thunk_%reg</code>
+locations.  The default thunk is <code>retpoline</code> (generally preferred for Intel
+hardware), with the alternatives being <code>jmp</code> (a <code>jmp *%reg</code> gadget, minimal
+overhead), and <code>lfence</code> (an <code>lfence; jmp *%reg</code> gadget, preferred for AMD).</p>
+
+<p>On hardware supporting IBRS (Indirect Branch Restricted Speculation), the
+<code>ibrs=</code> option can be used to force or prevent Xen using the feature itself.
+If Xen is not using IBRS itself, functionality is still set up so IBRS can be
+virtualised for guests.</p>
+
+<p>On hardware supporting IBPB (Indirect Branch Prediction Barrier), the <code>ibpb=</code>
+option can be used to force (the default) or prevent Xen from issuing branch
+prediction barriers on vcpu context switches.</p>
+
+<p>On hardware supporting SSBD (Speculative Store Bypass Disable), the <code>ssbd=</code>
+option can be used to force or prevent Xen using the feature itself.  On AMD
+hardware, this is a global option applied at boot, and not virtualised for
+guest use.  On Intel hardware, the feature is virtualised for guests,
+independently of Xen's choice of setting.</p>
+
+<p>On all hardware, the <code>eager-fpu=</code> option can be used to force or prevent Xen
+from using fully eager FPU context switches.  This is currently implemented as
+a global control.  By default, Xen will choose to use fully eager context
+switches on hardware believed to speculate past #NM exceptions.</p>
+
+<h3>sync_console</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Flag to force synchronous console output.  Useful for debugging, but
+not suitable for production environments due to incurred overhead.</p>
+
+<h3>tboot (x86)</h3>
+
+<blockquote>
+  <p><code>= 0x&lt;phys_addr&gt;</code></p>
+</blockquote>
+
+<p>Specify the physical address of the trusted boot shared page.</p>
+
+<h3>tbuf_size</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<p>Specify the per-cpu trace buffer size in pages.</p>
+
+<h3>tdt (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Flag to enable TSC deadline as the APIC timer mode.</p>
+
+<h3>tevt_mask</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<p>Specify a mask for Xen event tracing. This allows Xen tracing to be
+enabled at boot. Refer to the xentrace(8) documentation for a list of
+valid event mask values. In order to enable tracing, a buffer size (in
+pages) must also be specified via the tbuf_size parameter.</p>
+
+<h3>tickle_one_idle_cpu</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<h3>timer_slop</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<h3>tmem</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<h3>tmem_compress</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<h3>tsc (x86)</h3>
+
+<blockquote>
+  <p><code>= unstable | skewed | stable:socket</code></p>
+</blockquote>
+
+<h3>ucode (x86)</h3>
+
+<blockquote>
+  <p><code>= [&lt;integer&gt; | scan]</code></p>
+</blockquote>
+
+<p>Specify how and where to find CPU microcode update blob.</p>
+
+<p>'integer' specifies the CPU microcode update blob module index. When positive,
+this specifies the n-th module (in the GrUB entry, zero based) to be used
+for updating CPU micrcode. When negative, counting starts at the end of
+the modules in the GrUB entry (so with the blob commonly being last,
+one could specify <code>ucode=-1</code>). Note that the value of zero is not valid
+here (entry zero, i.e. the first module, is always the Dom0 kernel
+image). Note further that use of this option has an unspecified effect
+when used with xen.efi (there the concept of modules doesn't exist, and
+the blob gets specified via the <code>ucode=&lt;filename&gt;</code> config file/section
+entry; see <a href="efi.html">EFI configuration file description</a>).</p>
+
+<p>'scan' instructs the hypervisor to scan the multiboot images for an cpio
+image that contains microcode. Depending on the platform the blob with the
+microcode in the cpio name space must be:
+  - on Intel: kernel/x86/microcode/GenuineIntel.bin
+  - on AMD  : kernel/x86/microcode/AuthenticAMD.bin</p>
+
+<h3>unrestricted_guest (Intel)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+</blockquote>
+
+<h3>vcpu_migration_delay</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+
+<p>Default: <code>0</code></p>
+</blockquote>
+
+<p>Specify a delay, in microseconds, between migrations of a VCPU between
+PCPUs when using the credit1 scheduler. This prevents rapid fluttering
+of a VCPU between CPUs, and reduces the implicit overheads such as
+cache-warming. 1ms (1000) has been measured as a good value.</p>
+
+<h3>vesa-map</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<h3>vesa-mtrr</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<h3>vesa-ram</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+</blockquote>
+
+<h3>vga</h3>
+
+<blockquote>
+  <p><code>= ( ask | current | text-80x&lt;rows&gt; | gfx-&lt;width&gt;x&lt;height&gt;x&lt;depth&gt; | mode-&lt;mode&gt; )[,keep]</code></p>
+</blockquote>
+
+<p><code>ask</code> causes Xen to display a menu of available modes and request the
+user to choose one of them.</p>
+
+<p><code>current</code> causes Xen to use the graphics adapter in its current state,
+without further setup.</p>
+
+<p><code>text-80x&lt;rows&gt;</code> instructs Xen to set up text mode.  Valid values for
+<code>&lt;rows&gt;</code> are <code>25, 28, 30, 34, 43, 50, 80</code></p>
+
+<p><code>gfx-&lt;width&gt;x&lt;height&gt;x&lt;depth&gt;</code> instructs Xen to set up graphics mode
+with the specified width, height and depth.</p>
+
+<p><code>mode-&lt;mode&gt;</code> instructs Xen to use a specific mode, as shown with the
+<code>ask</code> option.  (N.B menu modes are displayed in hex, so <code>&lt;mode&gt;</code>
+should be a hexadecimal number)</p>
+
+<p>The optional <code>keep</code> parameter causes Xen to continue using the vga
+console even after dom0 has been started.  The default behaviour is to
+relinquish control to dom0.</p>
+
+<h3>viridian-spinlock-retry-count (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+
+<p>Default: <code>2047</code></p>
+</blockquote>
+
+<p>Specify the maximum number of retries before an enlightened Windows
+guest will notify Xen that it has failed to acquire a spinlock.</p>
+
+<h3>viridian-version (x86)</h3>
+
+<blockquote>
+  <p><code>= [&lt;major&gt;],[&lt;minor&gt;],[&lt;build&gt;]</code></p>
+
+<p>Default: <code>6,0,0x1772</code></p>
+</blockquote>
+
+<p><major>, <minor> and <build> must be integers. The values will be
+encoded in guest CPUID 0x40000002 if viridian enlightenments are enabled.</p>
+
+<h3>vpid (Intel)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Use Virtual Processor ID support if available.  This prevents the need for TLB
+flushes on VM entry and exit, increasing performance.</p>
+
+<h3>vpmu (x86)</h3>
+
+<blockquote>
+  <p><code>= ( &lt;boolean&gt; | { bts | ipc | arch [, ...] } )</code></p>
+
+<p>Default: <code>off</code></p>
+</blockquote>
+
+<p>Switch on the virtualized performance monitoring unit for HVM guests.</p>
+
+<p>If the current cpu isn't supported a message like
+'VPMU: Initialization failed. ...'
+is printed on the hypervisor serial log.</p>
+
+<p>For some Intel Nehalem processors a quirk handling exist for an unknown
+wrong behaviour (see handle_pmc_quirk()).</p>
+
+<p>If 'vpmu=bts' is specified the virtualisation of the Branch Trace Store (BTS)
+feature is switched on on Intel processors supporting this feature.</p>
+
+<p>vpmu=ipc enables performance monitoring, but restricts the counters to the
+most minimum set possible: instructions, cycles, and reference cycles. These
+can be used to calculate instructions per cycle (IPC).</p>
+
+<p>vpmu=arch enables performance monitoring, but restricts the counters to the
+pre-defined architectural events only. These are exposed by cpuid, and listed
+in the Pre-Defined Architectural Performance Events table from the Intel 64
+and IA-32 Architectures Software Developer's Manual, Volume 3B, System
+Programming Guide, Part 2.</p>
+
+<p>If a boolean is not used, combinations of flags are allowed, comma separated.
+For example, vpmu=arch,bts.</p>
+
+<p>Note that if <strong>watchdog</strong> option is also specified vpmu will be turned off.</p>
+
+<p><em>Warning:</em>
+As the virtualisation is not 100% safe, don't use the vpmu flag on
+production systems (see http://xenbits.xen.org/xsa/advisory-163.html)!</p>
+
+<h3>vwfi (arm)</h3>
+
+<blockquote>
+  <p>`= trap | native</p>
+
+<p>Default: <code>trap</code></p>
+</blockquote>
+
+<p>WFI is the ARM instruction to "wait for interrupt". WFE is similar and
+means "wait for event". This option, which is ARM specific, changes the
+way guest WFI and WFE are implemented in Xen. By default, Xen traps both
+instructions. In the case of WFI, Xen blocks the guest vcpu; in the case
+of WFE, Xen yield the guest vcpu. When setting vwfi to <code>native</code>, Xen
+doesn't trap either instruction, running them in guest context. Setting
+vwfi to <code>native</code> reduces irq latency significantly. It can also lead to
+suboptimal scheduling decisions, but only when the system is
+oversubscribed (i.e., in total there are more vCPUs than pCPUs).</p>
+
+<h3>watchdog (x86)</h3>
+
+<blockquote>
+  <p><code>= force | &lt;boolean&gt;</code></p>
+
+<p>Default: <code>false</code></p>
+</blockquote>
+
+<p>Run an NMI watchdog on each processor.  If a processor is stuck for
+longer than the <strong>watchdog_timeout</strong>, a panic occurs.  When <code>force</code> is
+specified, in addition to running an NMI watchdog on each processor,
+unknown NMIs will still be processed.</p>
+
+<h3>watchdog_timeout (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;integer&gt;</code></p>
+
+<p>Default: <code>5</code></p>
+</blockquote>
+
+<p>Set the NMI watchdog timeout in seconds.  Specifying <code>0</code> will turn off
+the watchdog.</p>
+
+<h3>x2apic (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Permit use of x2apic setup for SMP environments.</p>
+
+<h3>x2apic_phys (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code> if <strong>FADT</strong> mandates physical mode, <code>false</code> otherwise.</p>
+</blockquote>
+
+<p>In the case that x2apic is in use, this option switches between physical and
+clustered mode.  The default, given no hint from the <strong>FADT</strong>, is cluster
+mode.</p>
+
+<h3>xenheap_megabytes (arm32)</h3>
+
+<blockquote>
+  <p><code>= &lt;size&gt;</code></p>
+
+<p>Default: <code>0</code> (1/32 of RAM)</p>
+</blockquote>
+
+<p>Amount of RAM to set aside for the Xenheap. Must be an integer multiple of 32.</p>
+
+<p>By default will use 1/32 of the RAM up to a maximum of 1GB and with a
+minimum of 32M, subject to a suitably aligned and sized contiguous
+region of memory being available.</p>
+
+<h3>xpti (x86)</h3>
+
+<blockquote>
+  <p><code>= List of [ default | &lt;boolean&gt; | dom0=&lt;bool&gt; | domu=&lt;bool&gt; ]</code></p>
+
+<p>Default: <code>false</code> on hardware known not to be vulnerable to Meltdown (e.g. AMD)
+Default: <code>true</code> everywhere else</p>
+</blockquote>
+
+<p>Override default selection of whether to isolate 64-bit PV guest page
+tables.</p>
+
+<p><code>true</code> activates page table isolation even on hardware not vulnerable by
+Meltdown for all domains.</p>
+
+<p><code>false</code> deactivates page table isolation on all systems for all domains.</p>
+
+<p><code>default</code> sets the default behaviour.</p>
+
+<p>With <code>dom0</code> and <code>domu</code> it is possible to control page table isolation
+for dom0 or guest domains only.</p>
+
+<h3>xsave (x86)</h3>
+
+<blockquote>
+  <p><code>= &lt;boolean&gt;</code></p>
+
+<p>Default: <code>true</code></p>
+</blockquote>
+
+<p>Permit use of the <code>xsave/xrstor</code> instructions.</p>

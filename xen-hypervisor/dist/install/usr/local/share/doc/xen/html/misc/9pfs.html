@@ -1,0 +1,425 @@
+<h1>Xen transport for 9pfs version 1</h1>
+
+<h2>Background</h2>
+
+<p>9pfs is a network filesystem protocol developed for Plan 9. 9pfs is very
+simple and describes a series of commands and responses. It is
+completely independent from the communication channels, in fact many
+clients and servers support multiple channels, usually called
+"transports". For example the Linux client supports tcp and unix
+sockets, fds, virtio and rdma.</p>
+
+<h3>9pfs protocol</h3>
+
+<p>This document won't cover the full 9pfs specification. Please refer to
+this [paper] and this [website] for a detailed description of it.
+However it is useful to know that each 9pfs request and response has the
+following header:</p>
+
+<pre><code>struct header {
+    uint32_t size;
+    uint8_t id;
+    uint16_t tag;
+} __attribute__((packed));
+
+0         4  5    7
++---------+--+----+
+|  size   |id|tag |
++---------+--+----+
+</code></pre>
+
+<ul>
+<li><p><em>size</em>
+The size of the request or response.</p></li>
+<li><p><em>id</em>
+The 9pfs request or response operation.</p></li>
+<li><p><em>tag</em>
+Unique id that identifies a specific request/response pair. It is used
+to multiplex operations on a single channel.</p></li>
+</ul>
+
+<p>It is possible to have multiple requests in-flight at any given time.</p>
+
+<h2>Rationale</h2>
+
+<p>This document describes a Xen based transport for 9pfs, in the
+traditional PV frontend and backend format. The PV frontend is used by
+the client to send commands to the server. The PV backend is used by the
+9pfs server to receive commands from clients and send back responses.</p>
+
+<p>The transport protocol supports multiple rings up to the maximum
+supported by the backend. The size of every ring is also configurable
+and can span multiple pages, up to the maximum supported by the backend
+(although it cannot be more than 2MB). The design is to exploit
+parallelism at the vCPU level and support multiple outstanding requests
+simultaneously.</p>
+
+<p>This document does not cover the 9pfs client/server design or
+implementation, only the transport for it.</p>
+
+<h2>Xenstore</h2>
+
+<p>The frontend and the backend connect via xenstore to exchange
+information. The toolstack creates front and back nodes with state
+[XenbusStateInitialising]. The protocol node name is <strong>9pfs</strong>.</p>
+
+<p>Multiple rings are supported for each frontend and backend connection.</p>
+
+<h3>Backend XenBus Nodes</h3>
+
+<p>Backend specific properties, written by the backend, read by the
+frontend:</p>
+
+<pre><code>versions
+     Values:         &lt;string&gt;
+
+     List of comma separated protocol versions supported by the backend.
+     For example "1,2,3". Currently the value is just "1", as there is
+     only one version. N.B.: this is the version of the Xen trasport
+     protocol, not the version of 9pfs supported by the server.
+
+max-rings
+     Values:         &lt;uint32_t&gt;
+
+     The maximum supported number of rings per frontend.
+
+max-ring-page-order
+     Values:         &lt;uint32_t&gt;
+
+     The maximum supported size of a memory allocation in units of
+     log2n(machine pages), e.g. 1 = 2 pages, 2 == 4 pages, etc. It
+     must be at least 1.
+</code></pre>
+
+<p>Backend configuration nodes, written by the toolstack, read by the
+backend:</p>
+
+<pre><code>path
+     Values:         &lt;string&gt;
+
+     Host filesystem path to share.
+
+tag
+     Values:         &lt;string&gt;
+
+     Alphanumeric tag that identifies the 9pfs share. The client needs
+     to know the tag to be able to mount it.
+
+security-model
+     Values:         "none"
+
+     *none*: files are stored using the same credentials as they are
+             created on the guest (no user ownership squash or remap)
+     Only "none" is supported in this version of the protocol.
+</code></pre>
+
+<h3>Frontend XenBus Nodes</h3>
+
+<pre><code>version
+     Values:         &lt;string&gt;
+
+     Protocol version, chosen among the ones supported by the backend
+     (see **versions** under [Backend XenBus Nodes]). Currently the
+     value must be "1".
+
+num-rings
+     Values:         &lt;uint32_t&gt;
+
+     Number of rings. It needs to be lower or equal to max-rings.
+
+event-channel-&lt;num&gt; (event-channel-0, event-channel-1, etc)
+     Values:         &lt;uint32_t&gt;
+
+     The identifier of the Xen event channel used to signal activity
+     in the ring buffer. One for each ring.
+
+ring-ref&lt;num&gt; (ring-ref0, ring-ref1, etc)
+     Values:         &lt;uint32_t&gt;
+
+     The Xen grant reference granting permission for the backend to
+     map a page with information to setup a share ring. One for each
+     ring.
+</code></pre>
+
+<h3>State Machine</h3>
+
+<p>Initialization:</p>
+
+<pre><code>*Front*                               *Back*
+XenbusStateInitialising               XenbusStateInitialising
+- Query virtual device                - Query backend device
+  properties.                           identification data.
+- Setup OS device instance.           - Publish backend features
+- Allocate and initialize the           and transport parameters
+  request ring.                                      |
+- Publish transport parameters                       |
+  that will be in effect during                      V
+  this connection.                            XenbusStateInitWait
+             |
+             |
+             V
+   XenbusStateInitialised
+
+                                      - Query frontend transport parameters.
+                                      - Connect to the request ring and
+                                        event channel.
+                                                     |
+                                                     |
+                                                     V
+                                             XenbusStateConnected
+
+ - Query backend device properties.
+ - Finalize OS virtual device
+   instance.
+             |
+             |
+             V
+    XenbusStateConnected
+</code></pre>
+
+<p>Once frontend and backend are connected, they have a shared page per
+ring, which are used to setup the rings, and an event channel per ring,
+which are used to send notifications.</p>
+
+<p>Shutdown:</p>
+
+<pre><code>*Front*                            *Back*
+XenbusStateConnected               XenbusStateConnected
+            |
+            |
+            V
+   XenbusStateClosing
+
+                                   - Unmap grants
+                                   - Unbind evtchns
+                                             |
+                                             |
+                                             V
+                                     XenbusStateClosing
+
+- Unbind evtchns
+- Free rings
+- Free data structures
+           |
+           |
+           V
+   XenbusStateClosed
+
+                                   - Free remaining data structures
+                                             |
+                                             |
+                                             V
+                                     XenbusStateClosed
+</code></pre>
+
+<h2>Ring Setup</h2>
+
+<p>The shared page has the following layout:</p>
+
+<pre><code>typedef uint32_t XEN_9PFS_RING_IDX;
+
+struct xen_9pfs_intf {
+    XEN_9PFS_RING_IDX in_cons, in_prod;
+    uint8_t pad[56];
+    XEN_9PFS_RING_IDX out_cons, out_prod;
+    uint8_t pad[56];
+
+    uint32_t ring_order;
+    /* this is an array of (1 &lt;&lt; ring_order) elements */
+    grant_ref_t ref[1];
+};
+
+/* not actually C compliant (ring_order changes from ring to ring) */
+struct ring_data {
+    char in[((1 &lt;&lt; ring_order) &lt;&lt; PAGE_SHIFT) / 2];
+    char out[((1 &lt;&lt; ring_order) &lt;&lt; PAGE_SHIFT) / 2];
+};
+</code></pre>
+
+<ul>
+<li><strong>ring_order</strong>
+It represents the order of the data ring. The following list of grant
+references is of <code>(1 &lt;&lt; ring_order)</code> elements. It cannot be greater than
+<strong>max-ring-page-order</strong>, as specified by the backend on XenBus.</li>
+<li><strong>ref[]</strong>
+The list of grant references which will contain the actual data. They are
+mapped contiguosly in virtual memory. The first half of the pages is the
+<strong>in</strong> array, the second half is the <strong>out</strong> array. The array must
+have a power of two number of elements.</li>
+<li><strong>out</strong> is an array used as circular buffer
+It contains client requests. The producer is the frontend, the
+consumer is the backend.</li>
+<li><strong>in</strong> is an array used as circular buffer
+It contains server responses. The producer is the backend, the
+consumer is the frontend.</li>
+<li><strong>out<em>cons</strong>, <strong>out</em>prod</strong>
+Consumer and producer indices for client requests. They keep track of
+how much data has been written by the frontend to <strong>out</strong> and how much
+data has already been consumed by the backend. <strong>out<em>prod</strong> is
+increased by the frontend, after writing data to <strong>out</strong>. <strong>out</em>cons</strong>
+is increased by the backend, after reading data from <strong>out</strong>.</li>
+<li><strong>in<em>cons</strong> and <strong>in</em>prod</strong>
+Consumer and producer indices for responses. They keep track of how
+much data has already been consumed by the frontend from the <strong>in</strong>
+array. <strong>in<em>prod</strong> is increased by the backend, after writing data to
+<strong>in</strong>.  <strong>in</em>cons</strong> is increased by the frontend, after reading data
+from <strong>in</strong>.</li>
+</ul>
+
+<p>The binary layout of <code>struct xen_9pfs_intf</code> follows:</p>
+
+<pre><code>0         4         8           64        68        72        76 
++---------+---------+-----//-----+---------+---------+---------+
+| in_cons | in_prod |  padding   |out_cons |out_prod |ring_orde|
++---------+---------+-----//-----+---------+---------+---------+
+
+76        80        84      4092      4096
++---------+---------+----//---+---------+
+|  ref[0] |  ref[1] |         |  ref[N] |
++---------+---------+----//---+---------+
+</code></pre>
+
+<p><strong>N.B</strong> For one page, N is maximum 991 (4096-132)/4, but given that N
+needs to be a power of two, actually max N is 512. As 512 == (1 &lt;&lt; 9),
+the maximum possible max-ring-page-order value is 9.</p>
+
+<p>The binary layout of the ring buffers follow:</p>
+
+<pre><code>0         ((1&lt;&lt;ring_order)&lt;&lt;PAGE_SHIFT)/2       ((1&lt;&lt;ring_order)&lt;&lt;PAGE_SHIFT)
++------------//-------------+------------//-------------+
+|            in             |           out             |
++------------//-------------+------------//-------------+
+</code></pre>
+
+<h2>Why ring.h is not needed</h2>
+
+<p>Many Xen PV protocols use the macros provided by [ring.h] to manage
+their shared ring for communication. This procotol does not, because it
+actually comes with two rings: the <strong>in</strong> ring and the <strong>out</strong> ring.
+Each of them is mono-directional, and there is no static request size:
+the producer writes opaque data to the ring. On the other end, in
+[ring.h] they are combined, and the request size is static and
+well-known. In this protocol:</p>
+
+<p>in -> backend to frontend only
+  out-> frontend to backend only</p>
+
+<p>In the case of the <strong>in</strong> ring, the frontend is the consumer, and the
+backend is the producer. Everything is the same but mirrored for the
+<strong>out</strong> ring.</p>
+
+<p>The producer, the backend in this case, never reads from the <strong>in</strong>
+ring. In fact, the producer doesn't need any notifications unless the
+ring is full. This version of the protocol doesn't take advantage of it,
+leaving room for optimizations.</p>
+
+<p>On the other end, the consumer always requires notifications, unless it
+is already actively reading from the ring. The producer can figure it
+out, without any additional fields in the protocol, by comparing the
+indexes at the beginning and the end of the function. This is similar to
+what [ring.h] does.</p>
+
+<h2>Ring Usage</h2>
+
+<p>The <strong>in</strong> and <strong>out</strong> arrays are used as circular buffers:</p>
+
+<pre><code>0                               sizeof(array) == ((1&lt;&lt;ring_order)&lt;&lt;PAGE_SHIFT)/2
++-----------------------------------+
+|to consume|    free    |to consume |
++-----------------------------------+
+           ^            ^
+           prod         cons
+
+0                               sizeof(array)
++-----------------------------------+
+|  free    | to consume |   free    |
++-----------------------------------+
+           ^            ^
+           cons         prod
+</code></pre>
+
+<p>The following functions are provided to read and write to an array:</p>
+
+<pre><code>#define MASK_XEN_9PFS_IDX(idx) ((idx) &amp; (XEN_9PFS_RING_SIZE - 1))
+
+static inline void xen_9pfs_read(char *buf,
+        XEN_9PFS_RING_IDX *masked_prod, XEN_9PFS_RING_IDX *masked_cons,
+        uint8_t *h, size_t len) {
+    if (*masked_cons &lt; *masked_prod) {
+        memcpy(h, buf + *masked_cons, len);
+    } else {
+        if (len &gt; XEN_9PFS_RING_SIZE - *masked_cons) {
+            memcpy(h, buf + *masked_cons, XEN_9PFS_RING_SIZE - *masked_cons);
+            memcpy((char *)h + XEN_9PFS_RING_SIZE - *masked_cons, buf, len - (XEN_9PFS_RING_SIZE - *masked_cons));
+        } else {
+            memcpy(h, buf + *masked_cons, len);
+        }
+    }
+    *masked_cons = _MASK_XEN_9PFS_IDX(*masked_cons + len);
+}
+
+static inline void xen_9pfs_write(char *buf,
+        XEN_9PFS_RING_IDX *masked_prod, XEN_9PFS_RING_IDX *masked_cons,
+        uint8_t *opaque, size_t len) {
+    if (*masked_prod &lt; *masked_cons) {
+        memcpy(buf + *masked_prod, opaque, len);
+    } else {
+        if (len &gt; XEN_9PFS_RING_SIZE - *masked_prod) {
+            memcpy(buf + *masked_prod, opaque, XEN_9PFS_RING_SIZE - *masked_prod);
+            memcpy(buf, opaque + (XEN_9PFS_RING_SIZE - *masked_prod), len - (XEN_9PFS_RING_SIZE - *masked_prod)); 
+        } else {
+            memcpy(buf + *masked_prod, opaque, len); 
+        }
+    }
+    *masked_prod = _MASK_XEN_9PFS_IDX(*masked_prod + len);
+}
+</code></pre>
+
+<p>The producer (the backend for <strong>in</strong>, the frontend for <strong>out</strong>) writes to the
+array in the following way:</p>
+
+<ul>
+<li>read <em>cons</em>, <em>prod</em> from shared memory</li>
+<li>general memory barrier</li>
+<li>verify <em>prod</em> against local copy (consumer shouldn't change it)</li>
+<li>write to array at position <em>prod</em> up to <em>cons</em>, wrapping around the circular
+buffer when necessary</li>
+<li>write memory barrier</li>
+<li>increase <em>prod</em></li>
+<li>notify the other end via event channel</li>
+</ul>
+
+<p>The consumer (the backend for <strong>out</strong>, the frontend for <strong>in</strong>) reads from the
+array in the following way:</p>
+
+<ul>
+<li>read <em>prod</em>, <em>cons</em> from shared memory</li>
+<li>read memory barrier</li>
+<li>verify <em>cons</em> against local copy (producer shouldn't change it)</li>
+<li>read from array at position <em>cons</em> up to <em>prod</em>, wrapping around the circular
+buffer when necessary</li>
+<li>general memory barrier</li>
+<li>increase <em>cons</em></li>
+<li>notify the other end via event channel</li>
+</ul>
+
+<p>The producer takes care of writing only as many bytes as available in the buffer
+up to <em>cons</em>. The consumer takes care of reading only as many bytes as available
+in the buffer up to <em>prod</em>.</p>
+
+<h2>Request/Response Workflow</h2>
+
+<p>The client chooses one of the available rings, then it sends a request
+to the other end on the <em>out</em> array, following the producer workflow
+described in [Ring Usage].</p>
+
+<p>The server receives the notification and reads the request, following
+the consumer workflow described in [Ring Usage]. The server knows how
+much to read because it is specified in the <em>size</em> field of the 9pfs
+header. The server processes the request and sends back a response on
+the <em>in</em> array of the same ring, following the producer workflow as
+usual. Thus, every request/response pair is on one ring.</p>
+
+<p>The client receives a notification and reads the response from the <em>in</em>
+array. The client knows how much data to read because it is specified in
+the <em>size</em> field of the 9pfs header.</p>

@@ -1,0 +1,100 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title></title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:root@localhost" />
+</head>
+
+<body>
+
+
+
+<ul id="index">
+  <li><a href="#Description">Description</a></li>
+  <li><a href="#Guidelines">Guidelines</a></li>
+  <li><a href="#Reservations">Reservations</a></li>
+  <li><a href="#Notes">Notes</a></li>
+</ul>
+
+<h1 id="Description">Description</h1>
+
+<p>PCI vendor ID 0x5853 has been reserved for use by Xen systems in order to advertise certain virtual hardware to guest virtual machines. The primary use of this is with device ID 0x0001 to advertise the Xen Platform PCI device - the presence of this virtual device enables a guest Operating System (subject to the availability of suitable drivers) to make use of paravirtualisation features such as disk and network devices etc.</p>
+
+<p>Some Xen vendors wish to provide alternative and/or additional guest drivers that can bind to virtual devices[1]. This may be done using the Xen PCI vendor ID of 0x5853 and Xen-vendor/device specific PCI device IDs. This file records reservations made within the device ID range in order to avoid multiple Xen vendors using conflicting IDs.</p>
+
+<h1 id="Guidelines">Guidelines</h1>
+
+<dl>
+
+<dt id="A-vendor-may-request-a-range-of-device-IDs-by-submitting-a-patch-to-this-file">1. A vendor may request a range of device IDs by submitting a patch to this file.</dt>
+<dd>
+
+</dd>
+<dt id="Vendor-allocations-should-be-in-the-range-0xc000-0xfffe-to-reduce-the-possibility-of-clashes-with-community-IDs-assigned-from-the-bottom-up">2. Vendor allocations should be in the range 0xc000-0xfffe to reduce the possibility of clashes with community IDs assigned from the bottom up.</dt>
+<dd>
+
+</dd>
+<dt id="The-vendor-is-responsible-for-allocations-within-the-range-and-should-try-to-record-specific-device-IDs-in-PCI-ID-databases-such-as-http:-pciids.sourceforge.net-and-http-www.pcidatabase.com">3. The vendor is responsible for allocations within the range and should try to record specific device IDs in PCI ID databases such as http://pciids.sourceforge.net and http//www.pcidatabase.com</dt>
+<dd>
+
+</dd>
+</dl>
+
+<h1 id="Reservations">Reservations</h1>
+
+<pre><code>        range     | vendor/product
+    --------------+--------------------------------------------------------------
+    0x0001        | (Xen Platform PCI device)
+    0x0002        | Citrix XenServer (grandfathered allocation for XenServer 6.1)
+    0xc000-0xc0ff | Citrix XenServer
+    0xc100-0xc1ff | Citrix XenClient</code></pre>
+
+<h1 id="Notes">Notes</h1>
+
+<ol>
+
+<li><p>Upstream QEMU provides a parameterized device called xen-pvdevice that can be used to host guest drivers. Execute:</p>
+
+<pre><code>    qemu-system-i386 -device xen-pvdevice,help</code></pre>
+
+<p>for a list of all parameters. The following parameters are relevant to driver binding:</p>
+
+<dl>
+
+<dt id="vendor-id-default-0x5853">vendor-id (default 0x5853)</dt>
+<dd>
+
+<p>The PCI vendor ID and subsystem vendor ID of the device.</p>
+
+</dd>
+<dt id="device-id-must-be-specified">device-id (must be specified)</dt>
+<dd>
+
+<p>The PCI device ID and subsystem device ID of the device.</p>
+
+</dd>
+<dt id="revision-default-0x01">revision (default 0x01)</dt>
+<dd>
+
+<p>The PCI revision of the device</p>
+
+</dd>
+</dl>
+
+<p>Also the size parameter (default 0x400000) can be used to specify the size of the single MMIO BAR that the device exposes. This area may be used by drivers for mapping grant tables, etc.</p>
+
+<p>Note that the presence of the Xen Platform PCI device is generally a pre-requisite for an additional xen-pvdevice as it is the platform device that provides that IO ports necessary for unplugging emulated devices. See hvm-emulated-unplug.markdown for details of the IO ports and unplug protocol.</p>
+
+<p>libxl provides support for creation of a single additional xen-pvdevice. See the vendor_device parameter in xl.cfg(5).</p>
+
+</li>
+</ol>
+
+
+</body>
+
+</html>
+
+

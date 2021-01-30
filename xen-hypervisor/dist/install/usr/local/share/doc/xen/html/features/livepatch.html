@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Revision 1" />
+  <title>Live Patching</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+</head>
+<body>
+<header>
+<h1 class="title">Live Patching</h1>
+<p class="author">Revision 1</p>
+</header>
+<nav id="TOC">
+<ul>
+<li><a href="#basics"><span class="toc-section-number">1</span> Basics</a></li>
+<li><a href="#details"><span class="toc-section-number">2</span> Details</a></li>
+</ul>
+</nav>
+
+<h1 id="basics"><span class="header-section-number">1</span> Basics</h1>
+<table style="width:97%;">
+<colgroup>
+<col style="width: 23%" />
+<col style="width: 73%" />
+</colgroup>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">Status:</td>
+<td style="text-align: left;"><strong>Supported</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Architecture:</td>
+<td style="text-align: left;">x86</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">Status:</td>
+<td style="text-align: left;"><strong>Tech Preview/Experimental</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Architecture:</td>
+<td style="text-align: left;">ARM</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">Component:</td>
+<td style="text-align: left;">Hypervisor, toolstack</td>
+</tr>
+</tbody>
+</table>
+<h1 id="details"><span class="header-section-number">2</span> Details</h1>
+<p>Xen Live Patching has been available as tech preview feature since Xen 4.7 and has now had a couple of releases to stabilize. Xen Live patching has been used by multiple vendors to fix several real-world security issues without any severe bugs encountered. Additionally, there are now tests in OSSTest that test live patching to ensure that no regressions are introduced.</p>
+<p>Based on the amount of testing and usage it has had, we are ready to declare live patching as a ‘Supported’ feature on x86.</p>
+<p>Live patching is slightly peculiar when it comes to support because it allows the host administrator to break their system rather easily depending on the content of the live patch. Because of this, it is worth detailing the scope of security support:</p>
+<ol type="1">
+<li><p>Unprivileged access to live patching operations: Live patching operations should only be accessible to privileged guests and it shall be treated as a security issue if this is not the case.</p></li>
+<li><p>Bugs in the patch-application code such that vulnerabilities exist after application: If a correct live patch is loaded but it is not applied correctly such that it might result in an insecure system (e.g. not all functions are patched), it shall be treated as a security issue.</p></li>
+<li><p>Bugs in livepatch-build-tools creating an incorrect live patch that results in an insecure host: If livepatch-build-tools creates an incorrect live patch that results in an insecure host, this shall not be considered a security issue. A live patch should be checked to verify that it is valid before loading.</p></li>
+<li><p>Loading an incorrect live patch that results in an insecure host or host crash: If a live patch (whether created using livepatch-build-tools or some alternative) is loaded and it results in an insecure host or host crash due to the content of the live patch being incorrect or the issue being inappropriate to live patch, this is not considered as a security issue.</p></li>
+<li><p>Bugs in the live patch parsing code (the ELF loader): Bugs in the live patch parsing code such as out-of-bounds reads caused by invalid ELF files are not considered to be security issues because the it can only be triggered by a privileged domain.</p></li>
+<li><p>Bugs which allow a guest to prevent the application of a livepatch: A guest should not be able to prevent the application of a live patch. If an unprivileged guest can somehow prevent the application of a live patch despite pausing it (xl pause …), it shall be treated as a security issue.</p></li>
+</ol>
+<p>Note: It is expected that live patches are tested in a test environment before being used in production to avoid unexpected issues. In particular, to avoid the issues described by (3), (4), &amp; (5).</p>
+<p>There are also some generic security questions which are worth asking:</p>
+<ol type="1">
+<li>Is guest-&gt;host privilege escalation possible?</li>
+</ol>
+<p>The new live patching sysctl subops are only accessible to privileged domains and this is tested by OSSTest with an XTF test. There is a caveat – an incorrect live patch can introduce a guest-&gt;host privilege escalation.</p>
+<ol start="2" type="1">
+<li>Is guest user-&gt;guest kernel escalation possible?</li>
+</ol>
+<p>No, although an incorrect live patch can introduce a guest user-&gt;guest kernel privilege escalation.</p>
+<ol start="3" type="1">
+<li>Is there any information leakage?</li>
+</ol>
+<p>The new live patching sysctl subops are only accessible to privileged domains so it is not possible for an unprivileged guest to access the list of loaded live patches. This is tested by OSSTest with an XTF test. There is a caveat – an incorrect live patch can introduce an information leakage.</p>
+<ol start="4" type="1">
+<li>Can a Denial-of-Service be triggered?</li>
+</ol>
+<p>There are no known ways that an unprivileged guest can prevent a live patch from being loaded. Once again, there is a caveat that an incorrect live patch can introduce an arbitrary denial of service.</p>
+</body>
+</html>

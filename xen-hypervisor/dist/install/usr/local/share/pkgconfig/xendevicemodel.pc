@@ -1,0 +1,10 @@
+prefix=/usr/local
+includedir=/usr/local/include
+libdir=/usr/local/lib
+
+Name: Xendevicemodel
+Description: The Xendevicemodel library for Xen hypervisor
+Version: 1.2
+Cflags: -I${includedir} 
+Libs: -L${libdir} -lxendevicemodel
+Requires.private: xentoolcore,xentoollog,xencall

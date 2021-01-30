@@ -1,0 +1,201 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>xl-network-configuration - XL Network Configuration Syntax</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:root@localhost" />
+</head>
+
+<body>
+
+
+
+<ul id="index">
+  <li><a href="#NAME">NAME</a></li>
+  <li><a href="#SYNTAX">SYNTAX</a></li>
+  <li><a href="#Keywords">Keywords</a>
+    <ul>
+      <li><a href="#mac">mac</a></li>
+      <li><a href="#bridge">bridge</a></li>
+      <li><a href="#gatewaydev">gatewaydev</a></li>
+      <li><a href="#type">type</a></li>
+      <li><a href="#model">model</a></li>
+      <li><a href="#vifname">vifname</a></li>
+      <li><a href="#script">script</a></li>
+      <li><a href="#ip">ip</a></li>
+      <li><a href="#backend">backend</a></li>
+      <li><a href="#rate">rate</a></li>
+      <li><a href="#devid">devid</a></li>
+    </ul>
+  </li>
+</ul>
+
+<h1 id="NAME">NAME</h1>
+
+<p>xl-network-configuration - XL Network Configuration Syntax</p>
+
+<h1 id="SYNTAX">SYNTAX</h1>
+
+<p>This document specifies the xl config file format vif configuration option. It has the following form:</p>
+
+<pre><code>        vif = [ &#39;&lt;vifspec&gt;&#39;, &#39;&lt;vifspec&gt;&#39;, ... ]</code></pre>
+
+<p>where each vifspec is in this form:</p>
+
+<pre><code>        [&lt;key&gt;=&lt;value&gt;|&lt;flag&gt;,]</code></pre>
+
+<p>For example:</p>
+
+<pre><code>        &#39;mac=00:16:3E:74:3d:76,model=rtl8139,bridge=xenbr0&#39;
+        &#39;mac=00:16:3E:74:34:32&#39;
+        &#39;&#39; # The empty string</code></pre>
+
+<p>These might be specified in the domain config file like this:</p>
+
+<pre><code>        vif = [ &#39;mac=00:16:3E:74:34:32&#39;, &#39;mac=00:16:3e:5f:48:e4,bridge=xenbr1&#39; ]</code></pre>
+
+<p>More formally, the string is a series of comma-separated keyword/value pairs. All keywords are optional.</p>
+
+<p>Each device has a <code>DEVID</code> which is its index within the vif list, starting from 0.</p>
+
+<h1 id="Keywords">Keywords</h1>
+
+<h2 id="mac">mac</h2>
+
+<p>If specified then this option specifies the MAC address inside the guest of this VIF device. The value is a 48-bit number represented as six groups of two hexadecimal digits, separated by colons (:).</p>
+
+<p>The default if this keyword is not specified is to be automatically generate a MAC address inside the space assigned to Xen&#39;s <a href="http://en.wikipedia.org/wiki/Organizationally_Unique_Identifier">Organizationally Unique Identifier</a> (00:16:3e).</p>
+
+<p>If you are choosing a MAC address then it is strongly recommend to follow one of the following strategies:</p>
+
+<ul>
+
+<li><p>Generate a random sequence of 6 byte, set the locally administered bit (bit 2 of the first byte) and clear the multicast bit (bit 1 of the first byte). In other words the first byte should have the bit pattern xxxxxx10 (where x is a randomly generated bit) and the remaining 5 bytes are randomly generated See [http://en.wikipedia.org/wiki/MAC_address] for more details the structure of a MAC address.</p>
+
+</li>
+<li><p>Allocate an address from within the space defined by your organization&#39;s OUI (if you have one) following your organization&#39;s procedures for doing so.</p>
+
+</li>
+<li><p>Allocate an address from within the space defined by Xen&#39;s OUI (00:16:3e). Taking care not to clash with other users of the physical network segment where this VIF will reside.</p>
+
+</li>
+</ul>
+
+<p>If you have an OUI for your own use then that is the preferred strategy. Otherwise in general you should prefer to generate a random MAC and set the locally administered bit since this allows for more bits of randomness than using the Xen OUI.</p>
+
+<h2 id="bridge">bridge</h2>
+
+<p>Specifies the name of the network bridge which this VIF should be added to. The default is <code>xenbr0</code>. The bridge must be configured using your distribution&#39;s network configuration tools. See the <a href="http://wiki.xen.org/wiki/HostConfiguration/Networking">wiki</a> for guidance and examples.</p>
+
+<h2 id="gatewaydev">gatewaydev</h2>
+
+<p>Specifies the name of the network interface which has an IP and which is in the network the VIF should communicate with. This is used in the host by the vif-route hotplug script. See <a href="http://wiki.xen.org/wiki/Vif-route">wiki</a> for guidance and examples.</p>
+
+<p>NOTE: netdev is a deprecated alias of this option.</p>
+
+<h2 id="type">type</h2>
+
+<p>This keyword is valid for HVM guests only.</p>
+
+<p>Specifies the type of device to valid values are:</p>
+
+<ul>
+
+<li><p><code>ioemu</code> (default) -- this device will be provided as an emulate device to the guest and also as a paravirtualised device which the guest may choose to use instead if it has suitable drivers available.</p>
+
+</li>
+<li><p><code>vif</code> -- this device will be provided as a paravirtualised device only.</p>
+
+</li>
+</ul>
+
+<h2 id="model">model</h2>
+
+<p>This keyword is valid for HVM guest devices with <code>type=ioemu</code> only.</p>
+
+<p>Specifies the type device to emulated for this guest. Valid values are:</p>
+
+<ul>
+
+<li><p><code>rtl8139</code> (default) -- Realtek RTL8139</p>
+
+</li>
+<li><p><code>e1000</code> -- Intel E1000</p>
+
+</li>
+<li><p>in principle any device supported by your device model</p>
+
+</li>
+</ul>
+
+<h2 id="vifname">vifname</h2>
+
+<p>Specifies the backend device name for the virtual device.</p>
+
+<p>If the domain is an HVM domain then the associated emulated (tap) device will have a &quot;-emu&quot; suffice added.</p>
+
+<p>The default name for the virtual device is <code>vifDOMID.DEVID</code> where <code>DOMID</code> is the guest domain ID and <code>DEVID</code> is the device number. Likewise the default tap name is <code>vifDOMID.DEVID-emu</code>.</p>
+
+<h2 id="script">script</h2>
+
+<p>Specifies the hotplug script to run to configure this device (e.g. to add it to the relevant bridge). Defaults to <code>XEN_SCRIPT_DIR/vif-bridge</code> but can be set to any script. Some example scripts are installed in <code>XEN_SCRIPT_DIR</code>.</p>
+
+<h2 id="ip">ip</h2>
+
+<p>Specifies the IP address for the device, the default is not to specify an IP address.</p>
+
+<p>What, if any, effect this has depends on the hotplug script which is configured. A typically behaviour (exhibited by the example hotplug scripts) if set might be to configure firewall rules to allow only the specified IP address to be used by the guest (blocking all others).</p>
+
+<h2 id="backend">backend</h2>
+
+<p>Specifies the backend domain which this device should attach to. This defaults to domain 0. Specifying another domain requires setting up a driver domain which is outside the scope of this document.</p>
+
+<h2 id="rate">rate</h2>
+
+<p>Specifies the rate at which the outgoing traffic will be limited to. The default if this keyword is not specified is unlimited.</p>
+
+<p>The rate may be specified as &quot;/s&quot; or optionally &quot;/s@&quot;.</p>
+
+<ul>
+
+<li><p><code>RATE</code> is in bytes and can accept suffixes:</p>
+
+<ul>
+
+<li><p>GB, MB, KB, B for bytes.</p>
+
+</li>
+<li><p>Gb, Mb, Kb, b for bits.</p>
+
+</li>
+</ul>
+
+</li>
+<li><p><code>INTERVAL</code> is in microseconds and can accept suffixes: ms, us, s. It determines the frequency at which the vif transmission credit is replenished. The default is 50ms.</p>
+
+</li>
+</ul>
+
+<p>Vif rate limiting is credit-based. It means that for &quot;1MB/s@20ms&quot;, the available credit will be equivalent of the traffic you would have done at &quot;1MB/s&quot; during 20ms. This will results in a credit of 20,000 bytes replenished every 20,000 us.</p>
+
+<p>For example:</p>
+
+<pre><code>        &#39;rate=10Mb/s&#39; -- meaning up to 10 megabits every second
+        &#39;rate=250KB/s&#39; -- meaning up to 250 kilobytes every second
+        &#39;rate=1MB/s@20ms&#39; -- meaning 20,000 bytes in every 20 millisecond period</code></pre>
+
+<p>NOTE: The actual underlying limits of rate limiting are dependent on the underlying netback implementation.</p>
+
+<h2 id="devid">devid</h2>
+
+<p>Specifies the devid manually instead of letting xl choose the lowest index available.</p>
+
+<p>NOTE: This should not be set unless you have a reason to.</p>
+
+
+</body>
+
+</html>
+
+

@@ -1,0 +1,9 @@
+prefix=/usr/local
+includedir=/usr/local/include
+libdir=/usr/local/lib
+
+Name: Xentoolcore
+Description: Central support for Xen Hypervisor userland libraries
+Version: 1.0
+Cflags: -I${includedir}
+Libs: -L${libdir} -lxentoolcore

@@ -1,0 +1,119 @@
+<p>For x86, building xen.efi requires gcc 4.5.x or above (4.6.x or newer
+recommended, as 4.5.x was probably never really tested for this purpose) and
+binutils 2.22 or newer.  Additionally, the binutils build must be configured to
+include support for the x86_64-pep emulation (i.e.
+<code>--enable-targets=x86_64-pep</code> or an option of equivalent effect should be
+passed to the configure script).</p>
+
+<p>For arm64, the PE/COFF header is open-coded in assembly, so no toolchain
+support for PE/COFF is required.  Also, the PE/COFF header co-exists with the
+normal Image format, so a single binary may be booted as an Image file or as an
+EFI application.  When booted as an EFI application, Xen requires a
+configuration file as described below unless a bootloader, such as GRUB, has
+loaded the modules and describes them in the device tree provided to Xen.  If a
+bootloader provides a device tree containing modules then any configuration
+files are ignored, and the bootloader is responsible for populating all
+relevant device tree nodes.</p>
+
+<p>Once built, <code>make install-xen</code> will place the resulting binary directly into
+the EFI boot partition, provided <code>EFI_VENDOR</code> is set in the environment (and
+<code>EFI_MOUNTPOINT</code> is overridden as needed, should the default of <code>/boot/efi</code> not
+match your system). The xen.efi binary will also be installed in
+<code>/usr/lib64/efi/</code>, unless <code>EFI_DIR</code> is set in the environment to override this
+default.</p>
+
+<p>The binary itself will require a configuration file (names with the <code>.efi</code>
+extension of the binary's name replaced by <code>.cfg</code>, and - until an existing
+file is found - trailing name components dropped at <code>.</code>, <code>-</code>, and <code>_</code>
+separators will be tried) to be present in the same directory as the binary.
+(To illustrate the name handling, a binary named <code>xen-4.2-unstable.efi</code> would
+try <code>xen-4.2-unstable.cfg</code>, <code>xen-4.2.cfg</code>, <code>xen-4.cfg</code>, and <code>xen.cfg</code> in
+order.) One can override this with a command line option (<code>-cfg=&lt;filename&gt;</code>).
+This configuration file and EFI commandline are only used for booting directly
+from EFI firmware, or when using an EFI loader that does not support
+the multiboot2 protocol.  When booting using GRUB or another multiboot aware
+loader the EFI commandline is ignored and all information is passed from
+the loader to Xen using the multiboot protocol.</p>
+
+<p>The configuration file consists of one or more sections headed by a section
+name enclosed in square brackets, with individual values specified in each
+section. A section named <code>[global]</code> is treated specially to allow certain
+settings to apply to all other sections (or to provide defaults for certain
+settings in case individual sections don't specify them). This file (for now)
+needs to be of ASCII type and not e.g. UTF-8 or UTF-16. A typical file would
+thus look like this (<code>#</code> serving as comment character):</p>
+
+<pre><code>**************************example begin******************************
+
+[global]
+default=sle11sp2
+
+[sle11sp2]
+options=console=vga,com1 com1=57600 loglvl=all noreboot
+kernel=vmlinuz-3.0.31-0.4-xen [domain 0 command line options]
+ramdisk=initrd-3.0.31-0.4-xen
+
+**************************example end********************************
+</code></pre>
+
+<p>The individual values used here are:</p>
+
+<h3><code>default=&lt;name&gt;</code></h3>
+
+<p>Specifies the section to use for booting, if none was specified on the command
+line; only meaningful in the <code>[global]</code> section. This isn't required; if
+absent, section headers will be ignored and for each value looked for the
+first instance within the file will be used.</p>
+
+<h3><code>options=&lt;text&gt;</code></h3>
+
+<p>Specifies the options passed to the hypervisor, see <a href="xen-command-line.html">Xen Hypervisor Command
+Line Options</a>.</p>
+
+<h3><code>kernel=&lt;filename&gt;[ &lt;options&gt;]</code></h3>
+
+<p>Specifies the Dom0 kernel binary and the options to pass to it.</p>
+
+<p>The options should in general be the same as is used when booting
+natively, e.g. including <code>root=...</code> etc.</p>
+
+<p>Check your bootloader (e.g. grub) configuration or <code>/proc/cmdline</code> for
+the native configuration.</p>
+
+<h3><code>ramdisk=&lt;filename&gt;</code></h3>
+
+<p>Specifies a Linux-style initial RAM disk image to load.</p>
+
+<p>Other values to specify are:</p>
+
+<h3><code>video=gfx-&lt;xres&gt;[x&lt;yres&gt;[x&lt;depth&gt;]]</code></h3>
+
+<p>Specifies a video mode to select if available. In case of problems, the
+<code>-basevideo</code> command line option can be used to skip altering video modes.</p>
+
+<h3><code>xsm=&lt;filename&gt;</code></h3>
+
+<p>Specifies an XSM module to load.</p>
+
+<h3><code>ucode=&lt;filename&gt;</code></h3>
+
+<p>Specifies a CPU microcode blob to load. (x86 only)</p>
+
+<h3><code>dtb=&lt;filename&gt;</code></h3>
+
+<p>Specifies a device tree file to load.  The platform firmware may provide a
+DTB in an EFI configuration table, so this field is optional in that
+case. A dtb specified in the configuration file will override a device tree
+provided in the EFI configuration table. (ARM only)</p>
+
+<h3><code>chain=&lt;filename&gt;</code></h3>
+
+<p>Specifies an alternate configuration file to use in case the specified section
+(and in particular its <code>kernel=</code> setting) can't be found in the default (or
+specified) configuration file. This is only meaningful in the [global] section
+and really not meant to be used together with the <code>-cfg=</code> command line option.</p>
+
+<p>Filenames must be specified relative to the location of the EFI binary.</p>
+
+<p>Extra options to be passed to Xen can also be specified on the command line,
+following a <code>--</code> separator option.</p>

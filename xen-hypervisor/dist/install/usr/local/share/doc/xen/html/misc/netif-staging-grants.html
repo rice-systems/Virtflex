@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Revision 4" />
+  <title>Staging grants for network I/O requests</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+</head>
+<body>
+<header>
+<h1 class="title">Staging grants for network I/O requests</h1>
+<p class="author">Revision 4</p>
+</header>
+<nav id="TOC">
+<ul>
+<li><a href="#background-and-motivation"><span class="toc-section-number">1</span> Background and Motivation</a></li>
+<li><a href="#proposal"><span class="toc-section-number">2</span> Proposal</a></li>
+<li><a href="#general-operation"><span class="toc-section-number">3</span> General Operation</a><ul>
+<li><a href="#guest-transmit"><span class="toc-section-number">3.1</span> Guest Transmit</a></li>
+<li><a href="#guest-receive"><span class="toc-section-number">3.2</span> Guest Receive</a></li>
+</ul></li>
+<li><a href="#proposed-extension"><span class="toc-section-number">4</span> Proposed Extension</a><ul>
+<li><a href="#terminology"><span class="toc-section-number">4.1</span> Terminology</a></li>
+<li><a href="#control-ring-messages"><span class="toc-section-number">4.2</span> Control Ring Messages</a><ul>
+<li><a href="#xen_netif_ctrl_type_get_gref_mapping_size"><span class="toc-section-number">4.2.1</span> <code>XEN_NETIF_CTRL_TYPE_GET_GREF_MAPPING_SIZE</code></a></li>
+<li><a href="#xen_netif_ctrl_type_add_gref_mapping"><span class="toc-section-number">4.2.2</span> <code>XEN_NETIF_CTRL_TYPE_ADD_GREF_MAPPING</code></a></li>
+<li><a href="#xen_netif_ctrl_type_del_gref_mapping"><span class="toc-section-number">4.2.3</span> <code>XEN_NETIF_CTRL_TYPE_DEL_GREF_MAPPING</code></a></li>
+</ul></li>
+<li><a href="#datapath-changes"><span class="toc-section-number">4.3</span> Datapath Changes</a></li>
+</ul></li>
+<li><a href="#wire-performance"><span class="toc-section-number">5</span> Wire Performance</a></li>
+<li><a href="#performance"><span class="toc-section-number">6</span> Performance</a></li>
+<li><a href="#references"><span class="toc-section-number">7</span> References</a></li>
+<li><a href="#history"><span class="toc-section-number">8</span> History</a></li>
+</ul>
+</nav>
+
+<table>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Architecture(s): Any</td>
+</tr>
+</tbody>
+</table>
+<h1 id="background-and-motivation"><span class="header-section-number">1</span> Background and Motivation</h1>
+<p>At the Xen hackaton ’16 networking session, we spoke about having a permanently mapped region to describe header/linear region of packet buffers. This document outlines the proposal covering motivation of this and applicability for other use-cases alongside the necessary changes.</p>
+<p>The motivation of this work is to eliminate grant ops for packet I/O intensive workloads such as those observed with smaller requests size (i.e. &lt;= 256 bytes or &lt;= MTU). Currently on Xen, only bulk transfer (e.g. 32K..64K packets) are the only ones performing really good (up to 80 Gbit/s in few CPUs), usually backing end-hosts and server appliances. Anything that involves higher packet rates (&lt;= 1500 MTU) or without sg, performs badly almost like a 1 Gbit/s throughput.</p>
+<h1 id="proposal"><span class="header-section-number">2</span> Proposal</h1>
+<p>The proposal is to leverage the already implicit copy from and to packet linear data on netfront and netback, to be done instead from a permanently mapped region. In some (physical) NICs this is known as header/data split.</p>
+<p>Specifically some workloads (e.g. NFV) it would provide a big increase in throughput when we switch to (zero)copying in the backend/frontend, instead of the grant hypercalls. Thus this extension aims at futureproofing the netif protocol by adding the possibility of guests setting up a list of grants that are set up at device creation and revoked at device freeing - without taking too much grant entries in account for the general case (i.e. to cover only the header region &lt;= 256 bytes, 16 grants per ring) while configurable by kernel when one wants to resort to a copy-based as opposed to grant copy/map.</p>
+
+<h1 id="general-operation"><span class="header-section-number">3</span> General Operation</h1>
+<p>Here we describe how netback and netfront general operate, and where the proposed solution will fit. The security mechanism currently involves grants references which in essence are round-robin recycled ‘tickets’ stamped with the GPFNs, permission attributes, and the authorized domain:</p>
+<p>(This is an in-memory view of struct grant_entry_v1):</p>
+<pre><code> 0     1     2     3     4     5     6     7 octet
++------------+-----------+------------------------+
+| flags      | domain id | frame                  |
++------------+-----------+------------------------+</code></pre>
+<p>Where there are N grant entries in a grant table, for example:</p>
+<pre><code>@0:
++------------+-----------+------------------------+
+| rw         | 0         | 0xABCDEF               |
++------------+-----------+------------------------+
+| rw         | 0         | 0xFA124                |
++------------+-----------+------------------------+
+| ro         | 1         | 0xBEEF                 |
++------------+-----------+------------------------+
+
+  .....
+@N:
++------------+-----------+------------------------+
+| rw         | 0         | 0x9923A                |
++------------+-----------+------------------------+</code></pre>
+<p>Each entry consumes 8 bytes, therefore 512 entries can fit on one page. The <code>gnttab_max_frames</code> which is a default of 32 pages. Hence 16,384 grants. The ParaVirtualized (PV) drivers will use the grant reference (index in the grant table - 0 .. N) in their command ring.</p>
+
+<h2 id="guest-transmit"><span class="header-section-number">3.1</span> Guest Transmit</h2>
+<p>The view of the shared transmit ring is the following:</p>
+<pre><code> 0     1     2     3     4     5     6     7 octet
++------------------------+------------------------+
+| req_prod               | req_event              |
++------------------------+------------------------+
+| rsp_prod               | rsp_event              |
++------------------------+------------------------+
+| pvt                    | pad[44]                |
++------------------------+                        |
+| ....                                            | [64bytes]
++------------------------+------------------------+-\
+| gref                   | offset    | flags      | |
++------------+-----------+------------------------+ +-&#39;struct
+| id         | size      | id        | status     | | netif_tx_sring_entry&#39;
++-------------------------------------------------+-/
+|/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/| .. N
++-------------------------------------------------+</code></pre>
+<p>Each entry consumes 16 octets therefore 256 entries can fit on one page.<code>struct netif_tx_sring_entry</code> includes both <code>struct netif_tx_request</code> (first 12 octets) and <code>struct netif_tx_response</code> (last 4 octets). Additionally a <code>struct netif_extra_info</code> may overlay the request in which case the format is:</p>
+<pre><code>+------------------------+------------------------+-\
+| type |flags| type specific data (gso, hash, etc)| |
++------------+-----------+------------------------+ +-&#39;struct
+| padding for tx         | unused                 | | netif_extra_info&#39;
++-------------------------------------------------+-/</code></pre>
+<p>In essence the transmission of a packet in a from frontend to the backend network stack goes as following:</p>
+<p><strong>Frontend</strong></p>
+<ol type="1">
+<li>Calculate how many slots are needed for transmitting the packet. Fail if there are aren’t enough slots.</li>
+</ol>
+<p>[ Calculation needs to estimate slots taking into account 4k page boundary ]</p>
+<ol start="2" type="1">
+<li><p>Make first request for the packet. The first request contains the whole packet size, checksum info, flag whether it contains extra metadata, and if following slots contain more data.</p></li>
+<li><p>Put grant in the <code>gref</code> field of the tx slot.</p></li>
+<li><p>Set extra info if packet requires special metadata (e.g. GSO size)</p></li>
+<li><p>If there’s still data to be granted set flag <code>NETTXF_more_data</code> in request <code>flags</code>.</p></li>
+<li><p>Grant remaining packet pages one per slot. (grant boundary is 4k)</p></li>
+<li><p>Fill resultant grefs in the slots setting <code>NETTXF_more_data</code> for the N-1.</p></li>
+<li><p>Fill the total packet size in the first request.</p></li>
+<li><p>Set checksum info of the packet (if the chksum offload if supported)</p></li>
+<li><p>Update the request producer index (<code>req_prod</code>)</p></li>
+<li><p>Check whether backend needs a notification</p></li>
+</ol>
+<p>11.1) Perform hypercall <code>EVTCHNOP_send</code> which might mean a <strong>VMEXIT</strong> depending on the guest type.</p>
+<p><strong>Backend</strong></p>
+<ol start="12" type="1">
+<li><p>Backend gets an interrupt and runs its interrupt service routine.</p></li>
+<li><p>Backend checks if there are unconsumed requests</p></li>
+<li><p>Backend consume a request from the ring</p></li>
+<li><p>Process extra info (e.g. if GSO info was set)</p></li>
+<li><p>Counts all requests for this packet to be processed (while <code>NETTXF_more_data</code> is set) and performs a few validation tests:</p></li>
+</ol>
+<p>16.1) Fail transmission if total packet size is smaller than Ethernet minimum allowed;</p>
+<p>Failing transmission means filling <code>id</code> of the request and <code>status</code> of <code>NETIF_RSP_ERR</code> of <code>struct netif_tx_response</code>; update rsp_prod and finally notify frontend (through <code>EVTCHNOP_send</code>).</p>
+<p>16.2) Fail transmission if one of the slots (size + offset) crosses the page boundary</p>
+<p>16.3) Fail transmission if number of slots are bigger than spec defined (18 slots max in netif.h)</p>
+<ol start="17" type="1">
+<li>Allocate packet metadata</li>
+</ol>
+<p>[ <em>Linux specific</em>: This structure emcompasses a linear data region which generally accomodates the protocol header and such. Netback allocates up to 128 bytes for that. ]</p>
+<ol start="18" type="1">
+<li><p><em>Linux specific</em>: Setup up a <code>GNTTABOP_copy</code> to copy up to 128 bytes to this small region (linear part of the skb) <em>only</em> from the first slot.</p></li>
+<li><p>Setup GNTTABOP operations to copy/map the packet</p></li>
+<li><p>Perform the <code>GNTTABOP_copy</code> (grant copy) and/or <code>GNTTABOP_map_grant_ref</code> hypercalls.</p></li>
+</ol>
+<p>[ <em>Linux-specific</em>: does a copy for the linear region (&lt;=128 bytes) and maps the remaining slots as frags for the rest of the data ]</p>
+<ol start="21" type="1">
+<li>Check if the grant operations were successful and fail transmission if any of the resultant operation <code>status</code> were different than <code>GNTST_okay</code>.</li>
+</ol>
+<p>21.1) If it’s a grant copying backend, therefore produce responses for all the the copied grants like in 16.1). Only difference is that status is <code>NETIF_RSP_OKAY</code>.</p>
+<p>21.2) Update the response producer index (<code>rsp_prod</code>)</p>
+<ol start="22" type="1">
+<li><p>Set up gso info requested by frontend [optional]</p></li>
+<li><p>Set frontend provided checksum info</p></li>
+<li><p><em>Linux-specific</em>: Register destructor callback when packet pages are freed.</p></li>
+<li><p>Call into to the network stack.</p></li>
+<li><p>Update <code>req_event</code> to <code>request consumer index + 1</code> to receive a notification on the first produced request from frontend. [optional, if backend is polling the ring and never sleeps]</p></li>
+<li><p><em>Linux-specific</em>: Packet destructor callback is called.</p></li>
+</ol>
+<p>27.1) Set up <code>GNTTABOP_unmap_grant_ref</code> ops for the designated packet pages.</p>
+<p>27.2) Once done, perform <code>GNTTABOP_unmap_grant_ref</code> hypercall. Underlying this hypercall a TLB flush of all backend vCPUS is done.</p>
+<p>27.3) Produce Tx response like step 21.1) and 21.2)</p>
+<p>[<em>Linux-specific</em>: It contains a thread that is woken for this purpose. And it batch these unmap operations. The callback just queues another unmap.]</p>
+<p>27.4) Check whether frontend requested a notification</p>
+<p>27.4.1) If so, Perform hypercall <code>EVTCHNOP_send</code> which might mean a <strong>VMEXIT</strong> depending on the guest type.</p>
+<p><strong>Frontend</strong></p>
+<ol start="28" type="1">
+<li><p>Transmit interrupt is raised which signals the packet transmission completion.</p></li>
+<li><p>Transmit completion routine checks for unconsumed responses</p></li>
+<li><p>Processes the responses and revokes the grants provided.</p></li>
+<li><p>Updates <code>rsp_cons</code> (request consumer index)</p></li>
+</ol>
+<p>This proposal aims at removing steps 19) 20) 21) by using grefs previously mapped at guest request. Guest decides how to distribute or use these premapped grefs with either linear or full packet. This allows us to replace step 27) (the unmap) preventing the TLB flush.</p>
+<p>Note that a grant copy does the following (in pseudo code):</p>
+<pre><code>rcu_lock(src_domain);
+rcu_lock(dst_domain);
+
+for (op = gntcopy[0]; op &lt; nr_ops; op++) {
+    src_frame = __acquire_grant_for_copy(src_domain, &lt;op.src.gref&gt;);
+    ^ here implies a holding a potential contended per CPU lock on the
+          remote grant table.
+    src_vaddr = map_domain_page(src_frame);
+
+    dst_frame = __get_paged_frame(dst_domain, &lt;op.dst.mfn&gt;)
+    dst_vaddr = map_domain_page(dst_frame);
+
+    memcpy(dst_vaddr + &lt;op.dst.offset&gt;,
+        src_frame + &lt;op.src.offset&gt;,
+        &lt;op.size&gt;);
+
+    unmap_domain_page(src_frame);
+    unmap_domain_page(dst_frame);
+
+rcu_unlock(src_domain);
+rcu_unlock(dst_domain);</code></pre>
+<p>Linux netback implementation copies the first 128 bytes into its network buffer linear region. Hence on the case of the first region it is replaced by a memcpy on backend, as opposed to a grant copy.</p>
+
+<h2 id="guest-receive"><span class="header-section-number">3.2</span> Guest Receive</h2>
+<p>The view of the shared receive ring is the following:</p>
+<pre><code> 0     1     2     3     4     5     6     7 octet
++------------------------+------------------------+
+| req_prod               | req_event              |
++------------------------+------------------------+
+| rsp_prod               | rsp_event              |
++------------------------+------------------------+
+| pvt                    | pad[44]                |
++------------------------+                        |
+| ....                                            | [64bytes]
++------------------------+------------------------+
+| id         | pad       | gref                   | -&gt;&#39;struct netif_rx_request&#39;
++------------+-----------+------------------------+
+| id         | offset    | flags     | status     | -&gt;&#39;struct netif_rx_response&#39;
++-------------------------------------------------+
+|/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/| .. N
++-------------------------------------------------+</code></pre>
+<p>Each entry in the ring occupies 16 octets which means a page fits 256 entries. Additionally a <code>struct netif_extra_info</code> may overlay the rx request in which case the format is:</p>
+<pre><code>+------------------------+------------------------+
+| type |flags| type specific data (gso, hash, etc)| -&gt;&#39;struct netif_extra_info&#39;
++------------+-----------+------------------------+</code></pre>
+<p>Notice the lack of padding, and that is because it’s not used on Rx, as Rx request boundary is 8 octets.</p>
+<p>In essence the steps for receiving of a packet in a Linux frontend is as from backend to frontend network stack:</p>
+<p><strong>Backend</strong></p>
+<ol type="1">
+<li>Backend transmit function starts</li>
+</ol>
+<p>[<em>Linux-specific</em>: It means we take a packet and add to an internal queue (protected by a lock) whereas a separate thread takes it from that queue and process the actual like the steps below. This thread has the purpose of aggregating as much copies as possible.]</p>
+<ol start="2" type="1">
+<li><p>Checks if there are enough rx ring slots that can accomodate the packet.</p></li>
+<li><p>Gets a request from the ring for the first data slot and fetches the <code>gref</code> from it.</p></li>
+<li><p>Create grant copy op from packet page to <code>gref</code>.</p></li>
+</ol>
+<p>[ It’s up to the backend to choose how it fills this data. E.g. backend may choose to merge as much as data from different pages into this single gref, similar to mergeable rx buffers in vhost. ]</p>
+<ol start="5" type="1">
+<li><p>Sets up flags/checksum info on first request.</p></li>
+<li><p>Gets a response from the ring for this data slot.</p></li>
+<li><p>Prefill expected response ring with the request <code>id</code> and slot size.</p></li>
+<li><p>Update the request consumer index (<code>req_cons</code>)</p></li>
+<li><p>Gets a request from the ring for the first extra info [optional]</p></li>
+<li><p>Sets up extra info (e.g. GSO descriptor) [optional] repeat step 8).</p></li>
+<li><p>Repeat steps 3 through 8 for all packet pages and set <code>NETRXF_more_data</code> in the N-1 slot.</p></li>
+<li><p>Perform the <code>GNTTABOP_copy</code> hypercall.</p></li>
+<li><p>Check if the grant operations status was incorrect and if so set <code>status</code> of the <code>struct netif_rx_response</code> field to NETIF_RSP_ERR.</p></li>
+<li><p>Update the response producer index (<code>rsp_prod</code>)</p></li>
+</ol>
+<p><strong>Frontend</strong></p>
+<ol start="15" type="1">
+<li><p>Frontend gets an interrupt and runs its interrupt service routine</p></li>
+<li><p>Checks if there’s unconsumed responses</p></li>
+<li><p>Consumes a response from the ring (first response for a packet)</p></li>
+<li><p>Revoke the <code>gref</code> in the response</p></li>
+<li><p>Consumes extra info response [optional]</p></li>
+<li><p>While N-1 requests has <code>NETRXF_more_data</code>, then fetch each of responses and revoke the designated <code>gref</code>.</p></li>
+<li><p>Update the response consumer index (<code>rsp_cons</code>)</p></li>
+<li><p><em>Linux-specific</em>: Copy (from first slot gref) up to 256 bytes to the linear region of the packet metadata structure (skb). The rest of the pages processed in the responses are then added as frags.</p></li>
+<li><p>Set checksum info based on first response flags.</p></li>
+<li><p>Call packet into the network stack.</p></li>
+<li><p>Allocate new pages and any necessary packet metadata strutures to new requests. These requests will then be used in step 1) and so forth.</p></li>
+<li><p>Update the request producer index (<code>req_prod</code>)</p></li>
+<li><p>Check whether backend needs notification:</p></li>
+</ol>
+<p>27.1) If so, Perform hypercall <code>EVTCHNOP_send</code> which might mean a <strong>VMEXIT</strong> depending on the guest type.</p>
+<ol start="28" type="1">
+<li>Update <code>rsp_event</code> to <code>response consumer index + 1</code> such that frontend receive a notification on the first newly produced response. [optional, if frontend is polling the ring and never sleeps]</li>
+</ol>
+<p>This proposal aims at replacing step 4), 12) and 22) with memcpy if the grefs on the Rx ring were requested to be mapped by the guest. Frontend may use strategies to allow fast recycling of grants for replinishing the ring, hence letting Domain-0 replace the grant copies with memcpy instead, which is faster.</p>
+<p>Depending on the implementation, it would mean that we no longer would need to aggregate as much as grant ops as possible (step 1) and could transmit the packet on the transmit function (e.g. Linux <code>ndo_start_xmit</code>) as previously proposed here[<a href="http://lists.xenproject.org/archives/html/xen-devel/2015-05/msg01504.html">0</a>]. This would heavily improve efficiency specifially for smaller packets. Which in return would decrease RTT, having data being acknoledged much quicker.</p>
+
+<h1 id="proposed-extension"><span class="header-section-number">4</span> Proposed Extension</h1>
+<p>The idea is to allow guest more controllability on how its grants are mapped or not. Currently there’s no control over it for frontends or backends, and latter cannot make assumptions on the mapping transmit or receive grants, hence we need frontend to take initiative into managing its own mapping of grants. Guests may then opportunistically recycle these grants (e.g. Linux) and avoid resorting to copies which come when using a fixed amount of buffers. Other frameworks (e.g. XDP, netmap, DPDK) use a fixed set of buffers which also makes the case for this extension.</p>
+<h2 id="terminology"><span class="header-section-number">4.1</span> Terminology</h2>
+<p><code>staging grants</code> is a term used in this document to refer to the whole concept of having a set of grants permanently mapped with backend, containing data staging until completion. Therefore the term should not be confused with a new kind of grants on the hypervisor.</p>
+<h2 id="control-ring-messages"><span class="header-section-number">4.2</span> Control Ring Messages</h2>
+<h3 id="xen_netif_ctrl_type_get_gref_mapping_size"><span class="header-section-number">4.2.1</span> <code>XEN_NETIF_CTRL_TYPE_GET_GREF_MAPPING_SIZE</code></h3>
+<p>This message is sent by the frontend to fetch the number of grefs that can be kept mapped in the backend. It only receives the queue as argument, and data representing amount of free entries in the mapping table.</p>
+<h3 id="xen_netif_ctrl_type_add_gref_mapping"><span class="header-section-number">4.2.2</span> <code>XEN_NETIF_CTRL_TYPE_ADD_GREF_MAPPING</code></h3>
+<p>This is sent by the frontend to map a list of grant references in the backend. It receives the queue index, the grant containing the list (offset is implicitly zero) and how many entries in the list. Each entry in this list has the following format:</p>
+<pre><code>    0     1     2     3     4     5     6     7  octet
+ +-----+-----+-----+-----+-----+-----+-----+-----+
+ | grant ref             |  flags    |  status   |
+ +-----+-----+-----+-----+-----+-----+-----+-----+
+
+ grant ref: grant reference
+ flags: flags describing the control operation
+ status: XEN_NETIF_CTRL_STATUS_*</code></pre>
+<p>The list can have a maximum of 512 entries to be mapped at once. The ‘status’ field is not used for adding new mappings and hence, The message returns an error code describing if the operation was successful or not. On failure cases, none of the grant mappings specified get added.</p>
+<h3 id="xen_netif_ctrl_type_del_gref_mapping"><span class="header-section-number">4.2.3</span> <code>XEN_NETIF_CTRL_TYPE_DEL_GREF_MAPPING</code></h3>
+<p>This is sent by the frontend for backend to unmap a list of grant references. The arguments are the same as <code>XEN_NETIF_CTRL_TYPE_ADD_GREF_MAPPING</code>, including the format of the list. The entries used are only the ones representing grant references that were previously the subject of a <code>XEN_NETIF_CTRL_TYPE_ADD_GREF_MAPPING</code> operation. Any other entries will have their status set to <code>XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER</code> upon completion. The entry ‘status’ field determines if the entry was successfully removed.</p>
+<h2 id="datapath-changes"><span class="header-section-number">4.3</span> Datapath Changes</h2>
+<p>Control ring is only available after backend state is <code>XenbusConnected</code> therefore only on this state change can the frontend query the total amount of maps it can keep. It then grants N entries per queue on both TX and RX ring which will create the underying backend gref -&gt; page association (e.g. stored in hash table). Frontend may wish to recycle these pregranted buffers or choose a copy approach to replace granting.</p>
+<p>On steps 19) of Guest Transmit and 3) of Guest Receive, data gref is first looked up in this table and uses the underlying page if it already exists a mapping. On the successfull cases, steps 20) 21) and 27) of Guest Transmit are skipped, with 19) being replaced with a memcpy of up to 128 bytes. On Guest Receive, 4) 12) and 22) are replaced with memcpy instead of a grant copy.</p>
+<p>Failing to obtain the total number of mappings (<code>XEN_NETIF_CTRL_TYPE_GET_GREF_MAPPING_SIZE</code>) means the guest falls back to the normal usage without pre granting buffers.</p>
+
+<h1 id="wire-performance"><span class="header-section-number">5</span> Wire Performance</h1>
+<p>This section is a glossary meant to keep in mind numbers on the wire.</p>
+<p>The minimum size that can fit in a single packet with size N is calculated as:</p>
+<p>Packet = Ethernet Header (14) + Protocol Data Unit (46 - 1500) = 60 bytes</p>
+<p>In the wire it’s a bit more:</p>
+<p>Preamble (7) + Start Frame Delimiter (1) + Packet + CRC (4) + Interframe gap (12) = 84 bytes</p>
+<p>For given Link-speed in Bits/sec and Packet size, real packet rate is calculated as:</p>
+<p>Rate = Link-speed / ((Preamble + Packet + CRC + Interframe gap) * 8)</p>
+<p>Numbers to keep in mind (packet size excludes PHY layer, though packet rates disclosed by vendors take those into account, since it’s what goes on the wire):</p>
+<table>
+<thead>
+<tr class="header">
+<th>Packet + CRC (bytes)</th>
+<th style="text-align: center;">10 Gbit/s</th>
+<th style="text-align: center;">40 Gbit/s</th>
+<th style="text-align: center;">100 Gbit/s</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>64</td>
+<td style="text-align: center;">14.88 Mpps</td>
+<td style="text-align: center;">59.52 Mpps</td>
+<td style="text-align: center;">148.80 Mpps</td>
+</tr>
+<tr class="even">
+<td>128</td>
+<td style="text-align: center;">8.44 Mpps</td>
+<td style="text-align: center;">33.78 Mpps</td>
+<td style="text-align: center;">84.46 Mpps</td>
+</tr>
+<tr class="odd">
+<td>256</td>
+<td style="text-align: center;">4.52 Mpps</td>
+<td style="text-align: center;">18.11 Mpps</td>
+<td style="text-align: center;">45.29 Mpps</td>
+</tr>
+<tr class="even">
+<td>1500</td>
+<td style="text-align: center;">822 Kpps</td>
+<td style="text-align: center;">3.28 Mpps</td>
+<td style="text-align: center;">8.22 Mpps</td>
+</tr>
+<tr class="odd">
+<td>65535</td>
+<td style="text-align: center;">~19 Kpps</td>
+<td style="text-align: center;">76.27 Kpps</td>
+<td style="text-align: center;">190.68 Kpps</td>
+</tr>
+</tbody>
+</table>
+<p>Caption: Mpps (Million packets per second) ; Kpps (Kilo packets per second)</p>
+
+<h1 id="performance"><span class="header-section-number">6</span> Performance</h1>
+<p>Numbers between a Linux v4.11 guest and another host connected by a 100 Gbit/s NIC on a E5-2630 v4 2.2 GHz host to give an idea on the performance benefits of this extension. Please refer to this presentation[7] for a better overview of the results.</p>
+<p>( Numbers include protocol overhead )</p>
+<p><strong>bulk transfer (Guest TX/RX)</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>Queues</th>
+<th>Before (Gbit/s)</th>
+<th>After (Gbit/s)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1queue</td>
+<td>17244/6000</td>
+<td>38189/28108</td>
+</tr>
+<tr class="even">
+<td>2queue</td>
+<td>24023/9416</td>
+<td>54783/40624</td>
+</tr>
+<tr class="odd">
+<td>3queue</td>
+<td>29148/17196</td>
+<td>85777/54118</td>
+</tr>
+<tr class="even">
+<td>4queue</td>
+<td>39782/18502</td>
+<td>99530/46859</td>
+</tr>
+</tbody>
+</table>
+<p>( Guest -&gt; Dom0 )</p>
+<p><strong>Packet I/O (Guest TX/RX) in UDP 64b</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>Queues</th>
+<th>Before (Mpps)</th>
+<th>After (Mpps)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1queue</td>
+<td>0.684/0.439</td>
+<td>2.49/2.96</td>
+</tr>
+<tr class="even">
+<td>2queue</td>
+<td>0.953/0.755</td>
+<td>4.74/5.07</td>
+</tr>
+<tr class="odd">
+<td>4queue</td>
+<td>1.890/1.390</td>
+<td>8.80/9.92</td>
+</tr>
+</tbody>
+</table>
+
+<h1 id="references"><span class="header-section-number">7</span> References</h1>
+<p>[0] http://lists.xenproject.org/archives/html/xen-devel/2015-05/msg01504.html</p>
+<p>[1] https://github.com/freebsd/freebsd/blob/master/sys/dev/netmap/netmap_mem2.c#L362</p>
+<p>[2] https://www.freebsd.org/cgi/man.cgi?query=vale&amp;sektion=4&amp;n=1</p>
+<p>[3] https://github.com/iovisor/bpf-docs/blob/master/Express_Data_Path.pdf</p>
+<p>[4] http://prototype-kernel.readthedocs.io/en/latest/networking/XDP/design/requirements.html#write-access-to-packet-data</p>
+<p>[5] http://lxr.free-electrons.com/source/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c#L2073</p>
+<p>[6] http://lxr.free-electrons.com/source/drivers/net/ethernet/mellanox/mlx4/en_rx.c#L52</p>
+<p>[7] https://schd.ws/hosted_files/xendeveloperanddesignsummit2017/e6/ToGrantOrNotToGrant-XDDS2017_v3.pdf</p>
+<h1 id="history"><span class="header-section-number">8</span> History</h1>
+<p>A table of changes to the document, in chronological order.</p>
+<table>
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 60%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Date</th>
+<th>Revision</th>
+<th style="text-align: left;">Version</th>
+<th style="text-align: left;">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">2016-12-14</td>
+<td>1</td>
+<td style="text-align: left;">Xen 4.9</td>
+<td style="text-align: left;">Initial version for RFC</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">2017-09-01</td>
+<td>2</td>
+<td style="text-align: left;">Xen 4.10</td>
+<td style="text-align: left;">Rework to use control ring</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Trim down the specification</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Added some performance numbers from the presentation</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">2017-09-13</td>
+<td>3</td>
+<td style="text-align: left;">Xen 4.10</td>
+<td style="text-align: left;">Addressed changes from Paul Durrant</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">2017-09-19</td>
+<td>4</td>
+<td style="text-align: left;">Xen 4.10</td>
+<td style="text-align: left;">Addressed changes from Paul Durrant</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
